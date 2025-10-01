@@ -122,6 +122,7 @@ def main():
             chef2 = Bot(x=500, y=400, chef_name="Chef Sophie", color_variant=1)
             
             # Ajouter les chefs au manager
+            
             bot_manager.add_bot(chef1)
             bot_manager.add_bot(chef2)
             
