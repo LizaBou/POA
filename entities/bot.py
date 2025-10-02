@@ -1,6 +1,7 @@
 """
 Bot entity - Système multi-agents COMPÉTITIF
 Deux chefs en compétition pour marquer le plus de points!
+AVEC FILE DE COMMANDES pour aspect compétitif renforcé
 """
 import time
 import math
@@ -66,6 +67,10 @@ class BotManager:
                 delattr(game_state, 'order_claimed_by')
             if hasattr(game_state, 'order_claimer_name'):
                 delattr(game_state, 'order_claimer_name')
+            
+            # ⭐ IMPORTANT: Déclencher automatiquement la prochaine commande de la file
+            if hasattr(game_state, 'order_queue') and game_state.order_queue:
+                print(f"📋 Prochaine commande dans la file...")
             
             return total_score
         return 0
