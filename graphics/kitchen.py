@@ -1,6 +1,6 @@
 """
 Kitchen rendering - Vue cuisine avec bacs individuels pour chaque ingrédient et système d'assiettes
-Adapté pour le bot-chef cuisinier
+Adapté pour le bot-chef cuisinier - INGRÉDIENTS PLUS VISIBLES
 """
 import pygame
 import time
@@ -250,7 +250,7 @@ class KitchenRenderer:
         self.cutting_position = (cutting_x + cutting_w//2, cutting_y + cutting_h//2)
 
     def draw_prepared_area(self, asset_manager):
-        """Zone d'affichage des ingrédients préparés"""
+        """Zone d'affichage des ingrédients préparés - PLUS VISIBLES"""
         import game_state
         current_time = time.time()
         
@@ -268,7 +268,7 @@ class KitchenRenderer:
         title = self.font_small.render("Préparés", True, (100, 100, 100))
         self.screen.blit(title, (prepared_x + 5, prepared_y - 18))
         
-        # Afficher les ingrédients préparés
+        # Afficher les ingrédients préparés - PLUS GROS
         for idx, ingredient in enumerate(game_state.prepared_ingredients):
             if idx >= 8:  # Limite d'affichage
                 break
@@ -286,23 +286,25 @@ class KitchenRenderer:
                 if asset_manager:
                     img = asset_manager.get_ingredient_image(ingredient)
                     if img:
-                        scaled_img = pygame.transform.scale(img, (14, 14))
-                        self.screen.blit(scaled_img, (pos_x - 7, pos_y - 7 + float_offset))
+                        # INGRÉDIENTS BEAUCOUP PLUS GROS
+                        scaled_img = pygame.transform.scale(img, (28, 28))
+                        self.screen.blit(scaled_img, (pos_x - 14, pos_y - 14 + float_offset))
                     else:
                         pygame.draw.circle(self.screen, ing_config["color"], 
-                                         (pos_x, int(pos_y + float_offset)), 6)
+                                         (pos_x, int(pos_y + float_offset)), 12)
                 else:
                     pygame.draw.circle(self.screen, ing_config["color"], 
-                                     (pos_x, int(pos_y + float_offset)), 6)
+                                     (pos_x, int(pos_y + float_offset)), 12)
             except:
                 pygame.draw.circle(self.screen, ing_config["color"], 
-                                 (pos_x, int(pos_y + float_offset)), 6)
+                                 (pos_x, int(pos_y + float_offset)), 12)
             
-            # Marque de validation
-            pygame.draw.circle(self.screen, (50, 200, 50), (pos_x + 6, pos_y - 6), 2)
+            # Marque de validation plus visible
+            pygame.draw.circle(self.screen, (50, 200, 50), (pos_x + 10, pos_y - 10), 4)
+            pygame.draw.circle(self.screen, (255, 255, 255), (pos_x + 10, pos_y - 10), 4, 1)
 
     def draw_plating_station(self, asset_manager):
-        """Station d'assemblage avec assiettes - côte à côte avec le plan de travail"""
+        """Station d'assemblage avec assiettes - INGRÉDIENTS TRÈS VISIBLES"""
         import game_state
         current_time = time.time()
         
@@ -359,11 +361,11 @@ class KitchenRenderer:
             pygame.draw.circle(self.screen, (240, 240, 240), (plate_center_x, plate_center_y), 18)
             pygame.draw.circle(self.screen, (200, 200, 200), (plate_center_x, plate_center_y), 22, 2)
             
-            # Ingrédients sur l'assiette
+            # Ingrédients sur l'assiette - ÉNORMES ET TRÈS VISIBLES
             dish_name = game_state.plated_dish
             for idx, ingredient in enumerate(game_state.prepared_ingredients):
                 angle = (idx * 2 * math.pi) / max(1, len(game_state.prepared_ingredients))
-                radius = 10
+                radius = 14  # Augmenté pour plus d'espace
                 ing_x = plate_center_x + math.cos(angle) * radius
                 ing_y = plate_center_y + math.sin(angle) * radius
                 
@@ -378,17 +380,18 @@ class KitchenRenderer:
                     if asset_manager:
                         img = asset_manager.get_ingredient_image(ingredient)
                         if img:
-                            scaled_img = pygame.transform.scale(img, (10, 10))
-                            self.screen.blit(scaled_img, (final_x - 5, final_y - 5))
+                            # INGRÉDIENTS ÉNORMES SUR L'ASSIETTE
+                            scaled_img = pygame.transform.scale(img, (24, 24))
+                            self.screen.blit(scaled_img, (final_x - 12, final_y - 12))
                         else:
                             pygame.draw.circle(self.screen, ing_config["color"], 
-                                             (int(final_x), int(final_y)), 4)
+                                             (int(final_x), int(final_y)), 10)
                     else:
                         pygame.draw.circle(self.screen, ing_config["color"], 
-                                         (int(final_x), int(final_y)), 4)
+                                         (int(final_x), int(final_y)), 10)
                 except:
                     pygame.draw.circle(self.screen, ing_config["color"], 
-                                     (int(final_x), int(final_y)), 4)
+                                     (int(final_x), int(final_y)), 10)
             
             # Effet de brillance sur le plat fini
             glow = math.sin(current_time * 3) * 8 + 12
@@ -454,7 +457,7 @@ class KitchenRenderer:
             pygame.draw.circle(self.screen, (180, 180, 180), (tray_x, tray_y), 25, 2)
 
     def draw_chef_enhanced(self, bot, asset_manager):
-        """Chef avec animations améliorées spécifiques à son apparence"""
+        """Chef avec animations améliorées - INGRÉDIENTS TRÈS VISIBLES"""
         base_x, base_y = bot.x, bot.y
         current_time = time.time()
         
@@ -488,6 +491,25 @@ class KitchenRenderer:
                         px = knife_x + (hash(str(current_time)) % 20) - 10
                         py = knife_y + (hash(str(current_time*3)) % 15) - 5
                         pygame.draw.circle(self.screen, (255, 255, 150), (px, py), 1)
+                
+                # AFFICHER L'INGRÉDIENT EN COURS DE PRÉPARATION - ÉNORME ET TRÈS VISIBLE
+                if bot.preparing:
+                    ing_config = self.ingredient_config.get(bot.preparing, {"color": (150, 150, 150)})
+                    try:
+                        if asset_manager:
+                            img = asset_manager.get_ingredient_image(bot.preparing)
+                            if img:
+                                scaled_img = pygame.transform.scale(img, (50, 50))  # ÉNORME
+                                self.screen.blit(scaled_img, (knife_x - 25, knife_y - 25))
+                            else:
+                                pygame.draw.circle(self.screen, ing_config["color"], 
+                                                 (knife_x, knife_y), 22)
+                        else:
+                            pygame.draw.circle(self.screen, ing_config["color"], 
+                                             (knife_x, knife_y), 22)
+                    except:
+                        pygame.draw.circle(self.screen, ing_config["color"], 
+                                         (knife_x, knife_y), 22)
         
         # Animation d'assemblage
         elif bot.state == "plating" and hasattr(bot, 'plating') and bot.plating:
@@ -518,6 +540,82 @@ class KitchenRenderer:
         bot.x, bot.y = base_x, base_y
         bot.draw_chef(self.screen)  # Utilise la méthode du chef
         bot.x, bot.y = original_x, original_y
+        
+        # AFFICHER L'INGRÉDIENT QUE LE BOT TRANSPORTE - ÉNORME ET TRÈS VISIBLE
+        if bot.inv and bot.inv != "plated_dish":
+            ing_config = self.ingredient_config.get(bot.inv, {"color": (150, 150, 150)})
+            # Position au-dessus du chef
+            carry_x = base_x + 15
+            carry_y = base_y - 25
+            # Animation de flottement
+            float_offset = math.sin(current_time * 5) * 2
+            
+            try:
+                if asset_manager:
+                    img = asset_manager.get_ingredient_image(bot.inv)
+                    if img:
+                        # INGRÉDIENT TRANSPORTÉ ÉNORME
+                        scaled_img = pygame.transform.scale(img, (32, 32))
+                        self.screen.blit(scaled_img, (carry_x - 16, carry_y - 16 + float_offset))
+                    else:
+                        pygame.draw.circle(self.screen, ing_config["color"], 
+                                         (carry_x, int(carry_y + float_offset)), 14)
+                else:
+                    pygame.draw.circle(self.screen, ing_config["color"], 
+                                     (carry_x, int(carry_y + float_offset)), 14)
+            except:
+                pygame.draw.circle(self.screen, ing_config["color"], 
+                                 (carry_x, int(carry_y + float_offset)), 14)
+        
+        # AFFICHER LE PLAT DRESSÉ SI LE BOT LE TRANSPORTE - ÉNORME ET TRÈS VISIBLE
+        elif bot.inv == "plated_dish":
+            import game_state
+            
+            # Assiette transportée - BEAUCOUP PLUS GRANDE
+            carry_x = base_x + 20
+            carry_y = base_y - 30
+            float_offset = math.sin(current_time * 3) * 1.5
+            
+            # Assiette plus grande
+            pygame.draw.circle(self.screen, (255, 255, 255), 
+                             (carry_x, int(carry_y + float_offset)), 20)
+            pygame.draw.circle(self.screen, (240, 240, 240), 
+                             (carry_x, int(carry_y + float_offset)), 16)
+            pygame.draw.circle(self.screen, (200, 200, 200), 
+                             (carry_x, int(carry_y + float_offset)), 20, 2)
+            
+            # Afficher les ingrédients sur l'assiette transportée - ÉNORMES
+            if hasattr(game_state, 'prepared_ingredients') and game_state.prepared_ingredients:
+                for idx, ingredient in enumerate(game_state.prepared_ingredients):
+                    angle = (idx * 2 * math.pi) / max(1, len(game_state.prepared_ingredients))
+                    radius = 12
+                    ing_x = carry_x + math.cos(angle) * radius
+                    ing_y = carry_y + float_offset + math.sin(angle) * radius
+                    
+                    ing_config = self.ingredient_config.get(ingredient, {"color": (150, 150, 150)})
+                    
+                    try:
+                        if asset_manager:
+                            img = asset_manager.get_ingredient_image(ingredient)
+                            if img:
+                                # INGRÉDIENTS ÉNORMES SUR L'ASSIETTE TRANSPORTÉE
+                                scaled_img = pygame.transform.scale(img, (20, 20))
+                                self.screen.blit(scaled_img, (ing_x - 10, ing_y - 10))
+                            else:
+                                pygame.draw.circle(self.screen, ing_config["color"], 
+                                                 (int(ing_x), int(ing_y)), 8)
+                        else:
+                            pygame.draw.circle(self.screen, ing_config["color"], 
+                                             (int(ing_x), int(ing_y)), 8)
+                    except:
+                        pygame.draw.circle(self.screen, ing_config["color"], 
+                                         (int(ing_x), int(ing_y)), 8)
+            
+            # Effet de brillance plus visible
+            glow = math.sin(current_time * 4) * 8 + 15
+            glow_surf = pygame.Surface((50, 50), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (255, 255, 150, int(glow)), (25, 25), 22)
+            self.screen.blit(glow_surf, (carry_x - 25, int(carry_y + float_offset) - 25))
         
         # Indicateur d'état du bot au-dessus de la toque
         state_color = bot.get_state_color()

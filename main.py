@@ -1,20 +1,20 @@
 """
-Point d'entrée principal pour Mini Overcooked avec SYSTÈME MULTI-AGENTS COMPÉTITIF
-Deux chefs en compétition pour marquer le plus de points!
-FILE DE COMMANDES pour aspect compétitif renforcé
+Point d'entrée principal pour Mini Overcooked avec VRAIE COMPÉTITION MULTI-AGENTS
+✅ Chaque chef prend SA PROPRE commande
+✅ Travail simultané - PAS D'ATTENTE
+✅ Utilise OrderManager pour gérer les commandes multiples
 """
 import sys
 import os
 import pygame
 import time
 
-# Ajouter le répertoire racine au path pour les imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 def main():
-    print("=== MINI OVERCOOKED - SYSTÈME MULTI-AGENTS COMPÉTITIF ===")
-    print("🏆 Deux chefs en compétition!")
-    print("📋 FILE DE COMMANDES ACTIVÉE")
+    print("=== MINI OVERCOOKED - VRAIE COMPÉTITION MULTI-AGENTS ===")
+    print("🏆 Chaque chef prend SA PROPRE commande!")
+    print("✅ TRAVAIL SIMULTANÉ - PAS D'ATTENTE")
     print("Initialisation de l'interface graphique...")
     
     try:
@@ -23,6 +23,7 @@ def main():
         from graphics.kitchen import KitchenRenderer
         from graphics import ui, assets
         from entities.bot import Bot, BotManager
+        from entities.order_manager import OrderManager  # ⭐ NOUVEAU
         import config
         
         print("✓ Tous les modules chargés")
@@ -30,7 +31,7 @@ def main():
         # Initialiser pygame
         pygame.init()
         screen = pygame.display.set_mode((config.WIDTH, config.HEIGHT))
-        pygame.display.set_caption("Mini Overcooked - Multi-Agents Compétitif")
+        pygame.display.set_caption("Mini Overcooked - Vraie Compétition Multi-Agents")
         clock = pygame.time.Clock()
         
         print("✓ Interface graphique initialisée")
@@ -40,7 +41,7 @@ def main():
         game_state.initialize_ingredients()
         game_logic = GameLogic()
         
-        # Initialiser le renderer AVANT les bots
+        # Initialiser le renderer
         try:
             kitchen_renderer = KitchenRenderer(screen)
             print("✓ Renderer de cuisine initialisé")
@@ -49,82 +50,25 @@ def main():
             kitchen_renderer = None
             return
         
-        # VÉRIFICATION ET INITIALISATION DES VARIABLES GAME_STATE
-        print("\n=== VÉRIFICATION GAME_STATE ===")
-        
-        if not hasattr(game_state, 'current_order_name'):
-            game_state.current_order_name = None
-        if not hasattr(game_state, 'prepared_ingredients'):
-            game_state.prepared_ingredients = []
-        if not hasattr(game_state, 'user_input'):
-            game_state.user_input = ""
-        if not hasattr(game_state, 'plated_dish'):
-            game_state.plated_dish = None
-        
-        # ⭐ NOUVELLE: File de commandes
-        if not hasattr(game_state, 'order_queue'):
-            game_state.order_queue = []
+        # ⭐ INITIALISER ORDERMANAGER (système de commandes multiples)
+        print("\n=== INITIALISATION ORDERMANAGER ===")
+        order_manager = OrderManager()
+        game_state.order_manager = order_manager
         
         # Recettes disponibles
-        if not hasattr(game_state, 'available_ingredients'):
-            game_state.available_ingredients = {
-                "salade": ["laitue", "tomate"],
-                "burger": ["pain", "steak", "laitue", "tomate"],
-                "sandwich": ["pain", "fromage", "tomate"],
-                "salade_complete": ["laitue", "tomate", "fromage"],
-                "burger_deluxe": ["pain", "steak", "laitue", "tomate", "fromage"]
-            }
+        game_state.available_ingredients = {
+            "salade": ["laitue", "tomate"],
+            "burger": ["pain", "steak", "laitue", "tomate"],
+            "sandwich": ["pain", "fromage", "tomate"],
+            "salade_complete": ["laitue", "tomate", "fromage"],
+            "burger_deluxe": ["pain", "steak", "laitue", "tomate", "fromage"]
+        }
         
-        print(f"current_order_name: {game_state.current_order_name}")
-        print(f"prepared_ingredients: {game_state.prepared_ingredients}")
-        print(f"plated_dish: {getattr(game_state, 'plated_dish', None)}")
-        print(f"order_queue: {game_state.order_queue}")
-        print(f"available_recipes: {list(game_state.available_ingredients.keys())}")
+        game_state.user_input = ""
+        game_state.score = 0
         
-        # ⭐ Fonction pour ajouter une commande à la file
-        def add_order_to_queue(order_name):
-            """Ajoute une commande à la file d'attente"""
-            if order_name in game_state.available_ingredients:
-                game_state.order_queue.append({
-                    'name': order_name,
-                    'timestamp': time.time()
-                })
-                print(f"✓ Commande ajoutée à la file: {order_name}")
-                print(f"📋 File actuelle: {[o['name'] for o in game_state.order_queue]}")
-                return True
-            else:
-                print(f"❌ Recette inconnue: {order_name}")
-                return False
-        
-        # ⭐ Fonction pour démarrer la prochaine commande de la file
-        def start_next_order_from_queue():
-            """Démarre la prochaine commande de la file"""
-            if not game_state.order_queue:
-                return False
-            
-            if game_state.current_order_name:
-                print(f"⚠ Commande en cours, impossible de démarrer la suivante")
-                return False
-            
-            next_order = game_state.order_queue.pop(0)
-            order_name = next_order['name']
-            
-            game_state.current_order_name = order_name
-            game_state.prepared_ingredients.clear()
-            game_state.plated_dish = None
-            
-            # Nettoyer les attributs de compétition
-            if hasattr(game_state, 'order_claimed_by'):
-                delattr(game_state, 'order_claimed_by')
-            if hasattr(game_state, 'order_claimer_name'):
-                delattr(game_state, 'order_claimer_name')
-            
-            print(f"🏁 COURSE! Nouvelle commande: {order_name}")
-            print(f"📋 Commandes restantes: {len(game_state.order_queue)}")
-            return True
-        
-        game_state.add_order_to_queue = add_order_to_queue
-        game_state.start_next_order_from_queue = start_next_order_from_queue
+        print(f"✓ OrderManager prêt")
+        print(f"✓ Recettes disponibles: {list(game_state.available_ingredients.keys())}")
         
         # Initialiser les assets
         try:
@@ -140,9 +84,9 @@ def main():
         try:
             # Créer le gestionnaire de bots
             bot_manager = BotManager()
-            game_state.bot_manager = bot_manager  # ⭐ IMPORTANT: Lien avec game_state
+            game_state.bot_manager = bot_manager
             
-            # Créer deux chefs avec positions et apparences différentes
+            # Créer deux chefs
             chef1 = Bot(x=300, y=400, chef_name="Chef Marcel", color_variant=0)
             chef2 = Bot(x=500, y=400, chef_name="Chef Sophie", color_variant=1)
             
@@ -150,20 +94,15 @@ def main():
             bot_manager.add_bot(chef1)
             bot_manager.add_bot(chef2)
             
-            print(f"✓ Chef 1: {chef1.chef_name} créé à {chef1.get_position()}")
-            print(f"   - bot_id: {chef1.bot_id}")
-            print(f"   - Vitesse: {chef1.BOT_SPEED}")
-            print(f"✓ Chef 2: {chef2.chef_name} créé à {chef2.get_position()}")
-            print(f"   - bot_id: {chef2.bot_id}")
-            print(f"   - Vitesse: {chef2.BOT_SPEED}")
+            print(f"✓ Chef 1: {chef1.chef_name} créé")
+            print(f"✓ Chef 2: {chef2.chef_name} créé")
             
-            # Synchroniser les zones d'interaction avec le renderer
+            # Synchroniser les zones d'interaction
             if kitchen_renderer:
                 zones = kitchen_renderer.get_interaction_zones()
                 for bot in bot_manager.bots:
                     bot.update_interaction_zones(zones)
-                print("✅ Zones d'interaction synchronisées pour tous les chefs")
-                print(f"Zone de livraison: {zones.get('delivery')}")
+                print("✅ Zones d'interaction synchronisées")
             
             print("✅ Système multi-agents compétitif prêt!")
             
@@ -181,25 +120,29 @@ def main():
             print(f"⚠ Erreur UI: {e}")
             ui_renderer = None
         
-        print("\n🎮 LANCEMENT DU JEU EN MODE COMPÉTITION 🎮")
-        print("🏆 Les chefs vont se battre pour chaque commande!")
-        print("📋 FILE DE COMMANDES: Ajoutez plusieurs commandes pour augmenter la compétition!")
+        print("\n🎮 LANCEMENT DU JEU EN MODE COMPÉTITION RÉELLE 🎮")
+        print("🏆 Chaque chef peut prendre SA PROPRE commande!")
+        print("✅ Travail simultané - Les deux peuvent travailler en même temps!")
         print("\nRecettes disponibles:")
         for recipe, ingredients in game_state.available_ingredients.items():
             print(f"  - {recipe}: {', '.join(ingredients)}")
-        print("\n📝 Tapez une commande et appuyez sur Entrée pour l'ajouter à la file")
+        print("\n📝 Tapez UNE COMMANDE PAR LIGNE et appuyez sur Entrée")
+        print("💡 Ajoutez plusieurs commandes pour voir les chefs se battre!")
         print("\nRaccourcis:")
-        print("  F1 - Debug: Préparer tous les ingrédients instantanément")
-        print("  F2 - Debug: Réinitialiser l'état")
-        print("  F3 - Debug: Afficher les zones d'interaction")
+        print("  F1 - Ajouter 5 commandes random (test rapide)")
+        print("  F2 - Debug: Réinitialiser")
+        print("  F3 - Debug: Afficher zones d'interaction")
         print("  F4 - Debug: Info détaillée sur les chefs")
         print("  F5 - Debug: Classement des chefs")
-        print("  F6 - Debug: Afficher la file de commandes")
+        print("  F6 - Debug: Afficher le système de commandes")
         print("  ESC - Quitter")
         
         running = True
         frame_count = 0
         last_debug_time = 0
+        
+        # Liste des recettes pour F1 (test rapide)
+        recipe_names = list(game_state.available_ingredients.keys())
         
         while running and game_logic.is_running():
             dt = clock.tick(60) / 1000.0
@@ -216,48 +159,49 @@ def main():
                     elif event.key == pygame.K_BACKSPACE:
                         game_state.user_input = game_state.user_input[:-1]
                     elif event.key == pygame.K_RETURN:
-                        # ⭐ Ajouter la commande à la file
+                        # Ajouter la commande via OrderManager
                         order_name = game_state.user_input.lower().strip()
                         print(f"\n🍽️ AJOUT COMMANDE: '{order_name}'")
                         
-                        success = add_order_to_queue(order_name)
-                        if success:
-                            print(f"✅ Commande ajoutée à la file")
+                        if order_name in game_state.available_ingredients:
+                            ingredients = game_state.available_ingredients[order_name]
+                            order_manager.add_order(order_name, ingredients)
+                            print(f"✅ Commande '{order_name}' ajoutée à la file")
                         else:
-                            print(f"❌ Commande refusée: {order_name}")
+                            print(f"❌ Recette inconnue: {order_name}")
                         
                         game_state.user_input = ""
+                    
                     elif event.key == pygame.K_F1:
-                        # Debug: forcer l'achèvement
-                        if game_state.current_order_name:
-                            recipe = game_state.available_ingredients[game_state.current_order_name]
-                            game_state.prepared_ingredients = recipe.copy()
-                            print("🔧 DEBUG: Tous les ingrédients préparés")
+                        # Ajouter 5 commandes random pour test
+                        import random
+                        print("\n🎲 AJOUT DE 5 COMMANDES RANDOM:")
+                        for i in range(5):
+                            recipe = random.choice(recipe_names)
+                            ingredients = game_state.available_ingredients[recipe]
+                            order_manager.add_order(recipe, ingredients)
+                            print(f"  {i+1}. {recipe}")
+                        print("✅ 5 commandes ajoutées - Les chefs vont s'affronter!")
+                    
                     elif event.key == pygame.K_F2:
-                        # Debug: Réinitialiser
-                        game_state.current_order_name = None
-                        game_state.prepared_ingredients.clear()
-                        game_state.plated_dish = None
-                        game_state.order_queue.clear()
-                        # Nettoyer les attributs de compétition
-                        if hasattr(game_state, 'order_claimed_by'):
-                            delattr(game_state, 'order_claimed_by')
-                        if hasattr(game_state, 'order_claimer_name'):
-                            delattr(game_state, 'order_claimer_name')
+                        # Réinitialiser tout
+                        order_manager.reset()
                         for bot in bot_manager.bots:
                             bot.state = "idle"
                             bot.inv = None
                             bot.preparing = None
                             bot.plating = False
-                        print("🔧 DEBUG: État réinitialisé pour tous les chefs")
+                        print("🔧 DEBUG: Système complètement réinitialisé")
+                    
                     elif event.key == pygame.K_F3:
-                        # Debug: Zones
+                        # Afficher les zones
                         print("\n🗺️ ZONES D'INTERACTION:")
                         if bot_manager.bots:
                             for name, coords in bot_manager.bots[0].interaction_zones.items():
                                 print(f"   - {name}: {coords}")
+                    
                     elif event.key == pygame.K_F4:
-                        # Debug: Info chefs
+                        # Info détaillée des chefs
                         print("\n👨‍🍳 INFO DÉTAILLÉE DES CHEFS:")
                         for i, bot in enumerate(bot_manager.bots, 1):
                             info = bot.get_debug_info()
@@ -266,26 +210,41 @@ def main():
                             print(f"  État: {bot.get_state_text()}")
                             print(f"  Inventaire: {info['inventory']}")
                             print(f"  En préparation: {info['preparing']}")
-                            print(f"  Peut travailler: {info['can_work']}")
+                            print(f"  A une commande: {info['has_order']}")
                             print(f"  Motivation: {info['motivation']}")
-                            print(f"  bot_id: {bot.bot_id}")
+                            
+                            progress = order_manager.get_chef_progress(bot.bot_id)
+                            if progress:
+                                print(f"  🍽️ Commande actuelle: {progress['order_name']}")
+                                print(f"     Progression: {progress['prepared']}/{progress['required']}")
+                                print(f"     Manquants: {progress['ingredients_needed']}")
+                    
                     elif event.key == pygame.K_F5:
-                        # Debug: Classement
+                        # Classement
                         print("\n🏆 CLASSEMENT DES CHEFS:")
                         leaderboard = bot_manager.get_leaderboard()
                         for i, entry in enumerate(leaderboard, 1):
                             print(f"{i}. {entry['name']}: {entry['score']} points")
                             print(f"   - Plats livrés: {entry['stats']['dishes_delivered']}")
+                    
                     elif event.key == pygame.K_F6:
-                        # ⭐ Debug: File de commandes
-                        print("\n📋 FILE DE COMMANDES:")
-                        if game_state.current_order_name:
-                            print(f"  🏁 EN COURS: {game_state.current_order_name}")
-                        if game_state.order_queue:
-                            for i, order in enumerate(game_state.order_queue, 1):
-                                print(f"  {i}. {order['name']}")
-                        else:
-                            print("  (vide)")
+                        # Afficher le système de commandes
+                        print("\n📋 SYSTÈME DE COMMANDES:")
+                        status = order_manager.get_status_summary()
+                        print(f"  Disponibles: {status['available_orders']}")
+                        print(f"  Actives: {status['active_orders']}")
+                        print(f"  Complétées: {status['completed_orders']}")
+                        
+                        if status['chefs_working']:
+                            print("\n  👨‍🍳 Chefs en action:")
+                            for chef_info in status['chefs_working']:
+                                print(f"    - {chef_info['chef']}: {chef_info['order']} ({chef_info['progress']})")
+                        
+                        if order_manager.available_orders:
+                            print("\n  📋 File d'attente:")
+                            for i, order in enumerate(order_manager.available_orders[:5], 1):
+                                print(f"    {i}. {order['name']}")
+                    
                     else:
                         # Ajouter le caractère
                         if event.unicode.isprintable():
@@ -295,30 +254,22 @@ def main():
             game_logic.update_timer()
             game_logic.reduce_combo_over_time()
             
-            # ⭐ GESTION DE LA FILE: Démarrer automatiquement la prochaine commande
-            if not game_state.current_order_name and game_state.order_queue:
-                start_next_order_from_queue()
-            
             # ⭐ MISE À JOUR DU SYSTÈME MULTI-AGENTS ⭐
             try:
                 bot_manager.update()
                 
                 # Debug périodique (toutes les 5 secondes)
                 if current_time - last_debug_time >= 5.0:
+                    status = order_manager.get_status_summary()
                     print(f"\n🤖 ÉTAT COMPÉTITION (temps: {game_state.timer:.1f}s):")
-                    print(f"  Commande: {game_state.current_order_name}")
-                    print(f"  📋 File: {[o['name'] for o in game_state.order_queue]}")
-                    print(f"  Réclamée par: {getattr(game_state, 'order_claimer_name', 'personne')}")
-                    print(f"  Ingrédients prêts: {game_state.prepared_ingredients}")
-                    print(f"  Plat assemblé: {game_state.plated_dish}")
+                    print(f"  📋 Disponibles: {status['available_orders']} | Actives: {status['active_orders']} | Complétées: {status['completed_orders']}")
                     
-                    for i, bot in enumerate(bot_manager.bots, 1):
-                        state_text = bot.get_state_text()
-                        can_work = "✅ TRAVAILLE" if bot.can_work_on_order() else "⏸️ ATTEND"
-                        score = bot_manager.bot_scores.get(bot.bot_id, 0)
-                        print(f"  Chef {i} ({bot.chef_name}) - {score} pts: {state_text} [{can_work}]")
-                        if bot.inv:
-                            print(f"    → Porte: {bot.inv}")
+                    for chef_info in status['chefs_working']:
+                        print(f"  ✅ {chef_info['chef']}: {chef_info['order']} ({chef_info['progress']})")
+                    
+                    for bot in bot_manager.bots:
+                        if not order_manager.get_chef_order(bot.bot_id):
+                            print(f"  ⏳ {bot.chef_name}: Cherche une commande...")
                     
                     last_debug_time = current_time
                     
@@ -333,7 +284,6 @@ def main():
             # Rendu de la cuisine
             try:
                 if kitchen_renderer:
-                    # Utiliser le premier bot pour les infos générales du rendu
                     primary_bot = bot_manager.bots[0] if bot_manager.bots else None
                     if primary_bot:
                         kitchen_renderer.render_full_kitchen(
@@ -347,7 +297,6 @@ def main():
                             bot.draw_chef(screen)
                 else:
                     draw_basic_kitchen(screen)
-                    # Dessiner les chefs en mode basique
                     for bot in bot_manager.bots:
                         bot.draw_chef(screen)
             except Exception as e:
@@ -357,21 +306,20 @@ def main():
             # Rendu de l'UI
             try:
                 if ui_renderer:
-                    # Utiliser le premier bot pour l'UI
                     primary_bot = bot_manager.bots[0] if bot_manager.bots else None
                     ui_renderer.render_full_ui(
                         game_state.score,
                         game_state.timer,
-                        game_state.combo,
+                        getattr(game_state, 'combo', 0),
                         primary_bot,
                         game_state.user_input,
-                        game_state.current_order_name,
-                        game_state.prepared_ingredients,
+                        None,  # Plus de current_order_name unique
+                        [],    # Plus de prepared_ingredients unique
                         asset_manager,
-                        plated_dish=getattr(game_state, 'plated_dish', None)
+                        plated_dish=None
                     )
                     
-                    # ⭐ Afficher la file de commandes à l'écran
+                    # ⭐ Afficher le système de compétition à l'écran
                     font = pygame.font.Font(None, 20)
                     y_offset = 50
                     
@@ -379,30 +327,64 @@ def main():
                     leaderboard = bot_manager.get_leaderboard()
                     for i, entry in enumerate(leaderboard):
                         color = (255, 215, 0) if i == 0 else (200, 200, 200)
-                        text = f"{'🥇' if i == 0 else '🥈'} {entry['name']}: {entry['score']}"
+                        medal = "🥇" if i == 0 else "🥈"
+                        text = f"{medal} {entry['name']}: {entry['score']}"
                         score_surf = font.render(text, True, color)
                         screen.blit(score_surf, (config.WIDTH - 220, y_offset + i * 25))
                     
-                    # ⭐ File de commandes
+                    # Système de commandes
                     y_offset = 150
-                    queue_title = font.render("📋 FILE:", True, (255, 255, 255))
+                    status = order_manager.get_status_summary()
+                    
+                    queue_title = font.render("📋 SYSTÈME:", True, (255, 255, 255))
                     screen.blit(queue_title, (config.WIDTH - 220, y_offset))
                     y_offset += 25
                     
-                    if game_state.order_queue:
-                        for i, order in enumerate(game_state.order_queue[:5], 1):  # Afficher max 5
+                    stats_text = f"Dispo: {status['available_orders']} | Actives: {status['active_orders']}"
+                    stats_surf = font.render(stats_text, True, (200, 200, 200))
+                    screen.blit(stats_surf, (config.WIDTH - 220, y_offset))
+                    y_offset += 25
+                    
+                    completed_text = f"Complétées: {status['completed_orders']}"
+                    completed_surf = font.render(completed_text, True, (150, 255, 150))
+                    screen.blit(completed_surf, (config.WIDTH - 220, y_offset))
+                    y_offset += 30
+                    
+                    # Commandes actives
+                    if status['chefs_working']:
+                        active_title = font.render("⚙️ EN COURS:", True, (255, 255, 100))
+                        screen.blit(active_title, (config.WIDTH - 220, y_offset))
+                        y_offset += 20
+                        
+                        for chef_info in status['chefs_working']:
+                            chef_text = f"• {chef_info['chef'][:8]}:"
+                            chef_surf = font.render(chef_text, True, (200, 200, 200))
+                            screen.blit(chef_surf, (config.WIDTH - 215, y_offset))
+                            y_offset += 18
+                            
+                            order_text = f"  {chef_info['order']} {chef_info['progress']}"
+                            order_surf = font.render(order_text, True, (150, 255, 150))
+                            screen.blit(order_surf, (config.WIDTH - 210, y_offset))
+                            y_offset += 22
+                    
+                    y_offset += 10
+                    
+                    # File d'attente
+                    if order_manager.available_orders:
+                        queue_title2 = font.render("⏳ FILE:", True, (255, 200, 100))
+                        screen.blit(queue_title2, (config.WIDTH - 220, y_offset))
+                        y_offset += 20
+                        
+                        for i, order in enumerate(order_manager.available_orders[:3], 1):
                             order_text = f"{i}. {order['name']}"
                             order_surf = font.render(order_text, True, (200, 200, 150))
                             screen.blit(order_surf, (config.WIDTH - 210, y_offset))
-                            y_offset += 20
+                            y_offset += 18
                         
-                        if len(game_state.order_queue) > 5:
-                            more_text = f"... +{len(game_state.order_queue) - 5}"
+                        if len(order_manager.available_orders) > 3:
+                            more_text = f"... +{len(order_manager.available_orders) - 3}"
                             more_surf = font.render(more_text, True, (150, 150, 150))
                             screen.blit(more_surf, (config.WIDTH - 210, y_offset))
-                    else:
-                        empty_surf = font.render("(vide)", True, (100, 100, 100))
-                        screen.blit(empty_surf, (config.WIDTH - 210, y_offset))
                     
                 else:
                     draw_basic_ui(screen, game_state.score, game_state.timer)
@@ -444,19 +426,15 @@ def draw_basic_kitchen(screen):
         
         screen.fill((120, 140, 120))
         
-        # Zone de stockage (gauche)
         pygame.draw.rect(screen, (200, 200, 255), (50, 120, 300, 350))
         pygame.draw.rect(screen, (100, 100, 200), (50, 120, 300, 350), 3)
         
-        # Plan de travail (centre-haut)
         pygame.draw.rect(screen, (160, 120, 80), (400, 120, 250, 120))
         pygame.draw.rect(screen, (120, 80, 40), (400, 120, 250, 120), 3)
         
-        # Station d'assemblage (centre-bas)
         pygame.draw.rect(screen, (240, 230, 220), (400, 280, 250, 100))
         pygame.draw.rect(screen, (180, 150, 120), (400, 280, 250, 100), 3)
         
-        # Zone de service (droite)
         pygame.draw.rect(screen, (255, 200, 100), (700, 120, 120, 300))
         pygame.draw.rect(screen, (200, 150, 50), (700, 120, 120, 300), 3)
         
@@ -491,10 +469,6 @@ def draw_basic_ui(screen, score, timer):
         screen.blit(timer_text, (10, 50))
         
         import game_state
-        if hasattr(game_state, 'current_order_name') and game_state.current_order_name:
-            order_text = font.render(f"Commande: {game_state.current_order_name}", True, (255, 215, 0))
-            screen.blit(order_text, (10, 90))
-        
         if hasattr(game_state, 'user_input'):
             input_text = font.render(f"Tapez: {game_state.user_input}_", True, (200, 200, 200))
             screen.blit(input_text, (10, config.HEIGHT - 40))
@@ -522,15 +496,10 @@ def show_game_over_screen(screen, stats, bot_manager):
         screen.blit(title, title.get_rect(center=(config.WIDTH//2, 100)))
         
         y_offset = 160
-        texts = [
-            f"Score Total: {game_state.score}",
-            f"Combo Maximum: {game_state.combo}",
-        ]
-        
-        for text in texts:
-            rendered = font_medium.render(text, True, (255, 255, 255))
-            screen.blit(rendered, rendered.get_rect(center=(config.WIDTH//2, y_offset)))
-            y_offset += 40
+        score_text = f"Score Total: {game_state.score}"
+        rendered = font_medium.render(score_text, True, (255, 255, 255))
+        screen.blit(rendered, rendered.get_rect(center=(config.WIDTH//2, y_offset)))
+        y_offset += 40
         
         # Classement compétitif
         y_offset += 20
@@ -563,7 +532,7 @@ def show_game_over_screen(screen, stats, bot_manager):
             screen.blit(stats_surf, stats_surf.get_rect(center=(config.WIDTH//2, y_offset)))
             y_offset += 30
         
-        special_msg = font_medium.render("Merci d'avoir testé le mode compétition!", True, (100, 255, 100))
+        special_msg = font_medium.render("Système Multi-Agents Compétitif!", True, (100, 255, 100))
         screen.blit(special_msg, special_msg.get_rect(center=(config.WIDTH//2, y_offset + 20)))
         
         pygame.display.flip()
