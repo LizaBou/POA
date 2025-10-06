@@ -1,6 +1,5 @@
 """
-Kitchen rendering - Vue cuisine avec bacs individuels pour chaque ingrédient et système d'assiettes
-Adapté pour le bot-chef cuisinier - INGRÉDIENTS PLUS VISIBLES
+Kitchen rendering - Vue cuisine améliorée avec bacs individuels et design moderne
 """
 import pygame
 import time
@@ -38,53 +37,55 @@ class KitchenRenderer:
         self.setup_kitchen_layout()
 
     def setup_kitchen_layout(self):
-        """Configure la disposition de la cuisine - Layout côte à côte"""
-        # Zone de stockage avec bacs individuels (gauche) - plus petite
+        """Configuration de la disposition de la cuisine"""
         self.storage_area = {
             'x': 30, 'y': 100, 'w': 280, 'h': 320,
             'floor_x': 30, 'floor_y': 420, 'floor_w': 280, 'floor_h': 80
         }
         
-        # Plan de travail (centre-gauche) - côte à côte avec assemblage
         self.work_area = {
             'x': 350, 'y': 120, 'w': 200, 'h': 140,
             'floor_x': 350, 'floor_y': 260, 'floor_w': 200, 'floor_h': 80
         }
         
-        # Zone d'assemblage avec assiettes (centre-droite) - côte à côte avec travail
         self.plating_area = {
             'x': 570, 'y': 120, 'w': 200, 'h': 140,
             'floor_x': 570, 'floor_y': 260, 'floor_w': 200, 'floor_h': 80
         }
         
-        # Zone de service (droite)
         self.service_area = {
             'x': 790, 'y': 120, 'w': 120, 'h': 300,
             'floor_x': 720, 'floor_y': 240, 'floor_w': 100, 'floor_h': 180
         }
         
-        # Zone centrale de circulation élargie
         self.circulation = {
             'x': 320, 'y': 450, 'w': 450, 'h': 100
         }
 
     def draw_floor(self):
-        """Sol avec carrelage moderne"""
-        # Carrelage de base
+        """Sol avec carrelage moderne et effet de profondeur"""
         tile_size = 50
         for x in range(0, WIDTH, tile_size):
             for y in range(0, HEIGHT, tile_size):
-                # Alternance de couleurs
                 if (x//tile_size + y//tile_size) % 2 == 0:
-                    color = (245, 245, 245)
+                    color = (248, 248, 248)
                 else:
-                    color = (230, 230, 230)
+                    color = (235, 235, 235)
                 
                 tile_rect = pygame.Rect(x, y, tile_size, tile_size)
                 pygame.draw.rect(self.screen, color, tile_rect)
-                pygame.draw.rect(self.screen, (200, 200, 200), tile_rect, 1)
+                
+                # Bordures avec effet 3D
+                pygame.draw.line(self.screen, (220, 220, 220), 
+                               (x, y), (x + tile_size, y), 1)
+                pygame.draw.line(self.screen, (220, 220, 220), 
+                               (x, y), (x, y + tile_size), 1)
+                pygame.draw.line(self.screen, (200, 200, 200), 
+                               (x + tile_size, y), (x + tile_size, y + tile_size), 1)
+                pygame.draw.line(self.screen, (200, 200, 200), 
+                               (x, y + tile_size), (x + tile_size, y + tile_size), 1)
         
-        # Zones de circulation spéciales
+        # Zones de circulation avec effet lumineux
         circulation_zones = [
             (self.storage_area['floor_x'], self.storage_area['floor_y'], 
              self.storage_area['floor_w'], self.storage_area['floor_h']),
@@ -100,47 +101,62 @@ class KitchenRenderer:
         
         for x, y, w, h in circulation_zones:
             overlay = pygame.Surface((w, h), pygame.SRCALPHA)
-            overlay.fill((180, 200, 220, 50))
+            overlay.fill((180, 200, 220, 40))
             self.screen.blit(overlay, (x, y))
+            
+            # Bordure lumineuse
+            pygame.draw.rect(self.screen, (160, 180, 200), (x, y, w, h), 1)
 
     def draw_individual_ingredient_stations(self, asset_manager):
-        """Dessine des stations individuelles pour chaque type d'ingrédient - version dézoomée"""
+        """Stations individuelles pour chaque ingrédient avec design moderne"""
         import game_state
         current_time = time.time()
         
-        # Fond de la zone de stockage
+        # Fond de la zone avec effet de profondeur
         storage_rect = pygame.Rect(self.storage_area['x'], self.storage_area['y'], 
                                   self.storage_area['w'], self.storage_area['h'])
-        draw_gradient_rect(self.screen, (240, 245, 250), (220, 225, 230), storage_rect)
+        
+        # Ombre portée
+        shadow = pygame.Surface((self.storage_area['w'] + 6, self.storage_area['h'] + 6), pygame.SRCALPHA)
+        shadow.fill((0, 0, 0, 30))
+        self.screen.blit(shadow, (self.storage_area['x'] + 3, self.storage_area['y'] + 3))
+        
+        draw_gradient_rect(self.screen, (245, 250, 255), (225, 235, 245), storage_rect)
         pygame.draw.rect(self.screen, (150, 160, 170), storage_rect, 3)
         
-        # Récupérer tous les types d'ingrédients disponibles
+        # Titre avec design moderne
+        title_bg = pygame.Rect(self.storage_area['x'], self.storage_area['y'] - 35, 
+                              self.storage_area['w'], 30)
+        draw_gradient_rect(self.screen, (100, 120, 140), (80, 100, 120), title_bg)
+        title = self.font_medium.render("STOCKAGE DES INGRÉDIENTS", True, (255, 255, 255))
+        title_rect = title.get_rect(center=(self.storage_area['x'] + self.storage_area['w']//2, 
+                                            self.storage_area['y'] - 20))
+        self.screen.blit(title, title_rect)
+        
+        # Récupérer les ingrédients
         ingredient_types = list(set(ing["type"] for ing in game_state.ingredients))
         if not ingredient_types:
-            # Fallback avec ingrédients par défaut
             ingredient_types = ["laitue", "tomate", "pain", "steak", "fromage"]
         
-        # Organiser en grille 3x3 mais avec des stations plus petites (dézoomé)
+        # Grille optimisée
         cols = 3
-        station_width = 70  # Réduit de 80 à 70
-        station_height = 75  # Réduit de 90 à 75
-        margin_x = 15  # Réduit de 20 à 15
-        margin_y = 15  # Réduit de 20 à 15
+        station_width = 70
+        station_height = 75
+        margin_x = 15
+        margin_y = 15
         
         for i, ingredient_type in enumerate(ingredient_types):
             col = i % cols
             row = i // cols
             
-            station_x = self.storage_area['x'] + margin_x + col * (station_width + 12)  # Espacement réduit
-            station_y = self.storage_area['y'] + margin_y + row * (station_height + 12)  # Espacement réduit
+            station_x = self.storage_area['x'] + margin_x + col * (station_width + 12)
+            station_y = self.storage_area['y'] + margin_y + row * (station_height + 12)
             
-            # Configuration de l'ingrédient
             ing_config = self.ingredient_config.get(ingredient_type, {
                 "color": (150, 150, 150), 
                 "icon": "?"
             })
             
-            # Vérifier disponibilité
             available_ingredients = [ing for ing in game_state.ingredients 
                                    if ing["type"] == ingredient_type 
                                    and not ing["taken"] 
@@ -148,145 +164,193 @@ class KitchenRenderer:
             
             is_available = len(available_ingredients) > 0
             
-            # Station individuelle
+            # Station avec effet 3D
             station_rect = pygame.Rect(station_x, station_y, station_width, station_height)
             
+            # Ombre de la station
+            shadow_surf = pygame.Surface((station_width + 2, station_height + 2), pygame.SRCALPHA)
+            shadow_surf.fill((0, 0, 0, 40))
+            self.screen.blit(shadow_surf, (station_x + 2, station_y + 2))
+            
             if is_available:
-                # Station active - couleur verte
-                draw_gradient_rect(self.screen, (220, 255, 220), (180, 220, 180), station_rect)
+                draw_gradient_rect(self.screen, (230, 255, 230), (200, 235, 200), station_rect)
                 border_color = (50, 180, 50)
-                status_color = (50, 200, 50)
+                status_color = (50, 220, 50)
+                glow_intensity = int(20 + 15 * math.sin(current_time * 3))
             else:
-                # Station vide - couleur grise
-                draw_gradient_rect(self.screen, (240, 240, 240), (200, 200, 200), station_rect)
+                draw_gradient_rect(self.screen, (245, 245, 245), (215, 215, 215), station_rect)
                 border_color = (150, 150, 150)
                 status_color = (180, 180, 180)
+                glow_intensity = 0
             
             pygame.draw.rect(self.screen, border_color, station_rect, 2)
             
-            # Zone de stockage dans la station - plus petite
-            storage_rect = pygame.Rect(station_x + 8, station_y + 25, 54, 35)  # Tailles réduites
-            pygame.draw.rect(self.screen, ing_config["color"], storage_rect)
-            pygame.draw.rect(self.screen, (100, 100, 100), storage_rect, 1)
+            # Effet de lueur pour les stations disponibles
+            if glow_intensity > 0:
+                glow_surf = pygame.Surface((station_width + 10, station_height + 10), pygame.SRCALPHA)
+                pygame.draw.rect(glow_surf, (50, 255, 50, glow_intensity), 
+                               (0, 0, station_width + 10, station_height + 10), 3)
+                self.screen.blit(glow_surf, (station_x - 5, station_y - 5))
             
-            # Ingrédients disponibles dans la station
+            # Zone de stockage dans la station
+            storage_rect_inner = pygame.Rect(station_x + 8, station_y + 25, 54, 35)
+            pygame.draw.rect(self.screen, ing_config["color"], storage_rect_inner)
+            pygame.draw.rect(self.screen, (80, 80, 80), storage_rect_inner, 1)
+            
+            # Ingrédients visibles
             if is_available:
-                for j, ing in enumerate(available_ingredients[:4]):  # Max 4 ingrédients affichés
-                    # Position de l'ingrédient pour interaction
-                    ing_x = storage_rect.x + 13 + (j % 2) * 22  # Espacement ajusté
-                    ing_y = storage_rect.y + 8 + (j // 2) * 18  # Espacement ajusté
+                for j, ing in enumerate(available_ingredients[:4]):
+                    ing_x = storage_rect_inner.x + 13 + (j % 2) * 22
+                    ing_y = storage_rect_inner.y + 8 + (j // 2) * 18
                     
-                    # Mise à jour position pour le bot
                     ing["x"] = ing_x
                     ing["y"] = ing_y
                     
-                    # Animation de flottement
-                    float_y = ing_y + math.sin(current_time * 3 + j) * 1
+                    float_y = ing_y + math.sin(current_time * 3 + j) * 1.5
                     
                     try:
                         if asset_manager:
                             img = asset_manager.get_ingredient_image(ingredient_type)
                             if img:
-                                scaled_img = pygame.transform.scale(img, (16, 16))  # Taille réduite
+                                scaled_img = pygame.transform.scale(img, (16, 16))
                                 self.screen.blit(scaled_img, (ing_x - 8, float_y - 8))
                             else:
                                 pygame.draw.circle(self.screen, ing_config["color"], 
-                                                 (ing_x, int(float_y)), 7)  # Rayon réduit
+                                                 (ing_x, int(float_y)), 7)
                         else:
                             pygame.draw.circle(self.screen, ing_config["color"], 
-                                             (ing_x, int(float_y)), 7)  # Rayon réduit
+                                             (ing_x, int(float_y)), 7)
                     except:
                         pygame.draw.circle(self.screen, ing_config["color"], 
-                                         (ing_x, int(float_y)), 7)  # Rayon réduit
+                                         (ing_x, int(float_y)), 7)
             
-            # Étiquette de l'ingrédient
-            label_text = self.font_small.render(ingredient_type.capitalize(), True, (60, 60, 60))
-            label_rect = label_text.get_rect(center=(station_x + station_width//2, station_y + 12))
+            # Étiquette moderne
+            label_bg = pygame.Rect(station_x, station_y, station_width, 20)
+            overlay = pygame.Surface((station_width, 20), pygame.SRCALPHA)
+            overlay.fill((255, 255, 255, 150))
+            self.screen.blit(overlay, (station_x, station_y))
+            
+            label_text = self.font_small.render(ingredient_type.capitalize(), True, (40, 40, 40))
+            label_rect = label_text.get_rect(center=(station_x + station_width//2, station_y + 10))
             self.screen.blit(label_text, label_rect)
             
-            # Indicateur de statut (LED) - plus petit
+            # LED de statut moderne
             led_x = station_x + station_width - 12
             led_y = station_y + 8
-            pygame.draw.circle(self.screen, status_color, (led_x, led_y), 4)  # Rayon réduit
+            
+            # Halo autour de la LED
+            if is_available:
+                halo_surf = pygame.Surface((16, 16), pygame.SRCALPHA)
+                pygame.draw.circle(halo_surf, (status_color[0], status_color[1], status_color[2], 40), 
+                                 (8, 8), 7)
+                self.screen.blit(halo_surf, (led_x - 8, led_y - 8))
+            
+            pygame.draw.circle(self.screen, status_color, (led_x, led_y), 4)
             pygame.draw.circle(self.screen, (255, 255, 255), (led_x, led_y), 4, 1)
             
-            # Quantité disponible
+            # Reflet sur la LED
+            pygame.draw.circle(self.screen, (255, 255, 255), (led_x - 1, led_y - 1), 1)
+            
+            # Quantité avec badge moderne
             if is_available:
-                qty_text = self.font_small.render(f"{len(available_ingredients)}", True, (40, 120, 40))
-                self.screen.blit(qty_text, (led_x - 8, led_y + 12))
+                qty = len(available_ingredients)
+                badge_color = (40, 160, 40) if qty > 2 else (200, 150, 0)
+                pygame.draw.circle(self.screen, badge_color, (led_x, led_y + 18), 8)
+                pygame.draw.circle(self.screen, (255, 255, 255), (led_x, led_y + 18), 8, 1)
+                
+                qty_text = self.font_small.render(str(qty), True, (255, 255, 255))
+                qty_rect = qty_text.get_rect(center=(led_x, led_y + 18))
+                self.screen.blit(qty_text, qty_rect)
 
     def draw_work_station(self, asset_manager):
-        """Station de travail pour la préparation"""
-        # Plan de travail principal
+        """Station de travail moderne avec effets visuels"""
+        # Ombre
+        shadow = pygame.Surface((self.work_area['w'] + 6, self.work_area['h'] + 6), pygame.SRCALPHA)
+        shadow.fill((0, 0, 0, 40))
+        self.screen.blit(shadow, (self.work_area['x'] + 3, self.work_area['y'] + 3))
+        
         work_rect = pygame.Rect(self.work_area['x'], self.work_area['y'], 
                                self.work_area['w'], self.work_area['h'])
-        draw_gradient_rect(self.screen, (200, 160, 120), (180, 140, 100), work_rect)
+        draw_gradient_rect(self.screen, (210, 170, 130), (190, 150, 110), work_rect)
         pygame.draw.rect(self.screen, (120, 80, 40), work_rect, 3)
         
-        # Titre de la station
-        title = self.font_small.render("Plan de Travail", True, (80, 60, 40))
-        self.screen.blit(title, (self.work_area['x'] + 10, self.work_area['y'] - 18))
+        # Titre moderne
+        title_bg = pygame.Rect(self.work_area['x'], self.work_area['y'] - 30, 
+                              self.work_area['w'], 25)
+        draw_gradient_rect(self.screen, (120, 80, 40), (100, 60, 20), title_bg)
+        title = self.font_small.render("PLAN DE TRAVAIL", True, (255, 255, 255))
+        self.screen.blit(title, (self.work_area['x'] + 10, self.work_area['y'] - 25))
         
-        # Zone de découpe
+        # Zone de découpe avec texture bois
         cutting_x = self.work_area['x'] + 15
         cutting_y = self.work_area['y'] + 20
         cutting_w = 80
         cutting_h = 70
         
         cutting_rect = pygame.Rect(cutting_x, cutting_y, cutting_w, cutting_h)
-        draw_gradient_rect(self.screen, (220, 180, 140), (200, 160, 120), cutting_rect)
+        draw_gradient_rect(self.screen, (230, 190, 150), (210, 170, 130), cutting_rect)
         pygame.draw.rect(self.screen, (140, 100, 60), cutting_rect, 2)
         
-        # Marques d'utilisation sur la planche
-        for i in range(4):
-            line_x = cutting_x + 12 + i * 15
-            pygame.draw.line(self.screen, (160, 120, 80), 
-                           (line_x, cutting_y + 12), (line_x, cutting_y + 58), 1)
+        # Texture bois
+        for i in range(5):
+            line_x = cutting_x + 10 + i * 14
+            pygame.draw.line(self.screen, (190, 150, 110), 
+                           (line_x, cutting_y + 10), (line_x, cutting_y + 60), 1)
+            pygame.draw.line(self.screen, (210, 170, 130), 
+                           (line_x + 1, cutting_y + 10), (line_x + 1, cutting_y + 60), 1)
         
-        # Zone des ingrédients préparés
+        # Zone des préparés
         self.draw_prepared_area(asset_manager)
         
-        # Position de découpe pour le bot
         self.cutting_position = (cutting_x + cutting_w//2, cutting_y + cutting_h//2)
 
     def draw_prepared_area(self, asset_manager):
-        """Zone d'affichage des ingrédients préparés - PLUS VISIBLES"""
+        """Zone d'affichage des ingrédients préparés avec style moderne"""
         import game_state
         current_time = time.time()
         
-        # Zone des préparés à droite du plan de travail
         prepared_x = self.work_area['x'] + 105
         prepared_y = self.work_area['y'] + 20
         prepared_w = 80
         prepared_h = 70
         
         prepared_rect = pygame.Rect(prepared_x, prepared_y, prepared_w, prepared_h)
-        pygame.draw.rect(self.screen, (250, 250, 250), prepared_rect)
+        
+        # Fond avec gradient
+        draw_gradient_rect(self.screen, (255, 255, 255), (240, 245, 250), prepared_rect)
         pygame.draw.rect(self.screen, (150, 150, 150), prepared_rect, 2)
         
-        # Titre
-        title = self.font_small.render("Préparés", True, (100, 100, 100))
-        self.screen.blit(title, (prepared_x + 5, prepared_y - 18))
+        # Titre stylisé
+        title_overlay = pygame.Surface((prepared_w, 16), pygame.SRCALPHA)
+        title_overlay.fill((100, 150, 200, 180))
+        self.screen.blit(title_overlay, (prepared_x, prepared_y - 16))
         
-        # Afficher les ingrédients préparés - PLUS GROS
+        title = self.font_small.render("PRÉPARÉS", True, (255, 255, 255))
+        self.screen.blit(title, (prepared_x + 5, prepared_y - 15))
+        
+        # Afficher les ingrédients
         for idx, ingredient in enumerate(game_state.prepared_ingredients):
-            if idx >= 8:  # Limite d'affichage
+            if idx >= 8:
                 break
                 
             pos_x = prepared_x + 12 + (idx % 4) * 18
             pos_y = prepared_y + 12 + (idx // 4) * 22
             
-            # Animation
-            float_offset = math.sin(current_time * 4 + idx) * 1
+            float_offset = math.sin(current_time * 4 + idx) * 1.5
             
-            # Couleur de l'ingrédient
             ing_config = self.ingredient_config.get(ingredient, {"color": (150, 150, 150)})
+            
+            # Halo autour de l'ingrédient
+            glow_surf = pygame.Surface((32, 32), pygame.SRCALPHA)
+            glow_color = ing_config["color"]
+            pygame.draw.circle(glow_surf, (glow_color[0], glow_color[1], glow_color[2], 30), 
+                             (16, 16), 14)
+            self.screen.blit(glow_surf, (pos_x - 16, pos_y - 16 + float_offset))
             
             try:
                 if asset_manager:
                     img = asset_manager.get_ingredient_image(ingredient)
                     if img:
-                        # INGRÉDIENTS BEAUCOUP PLUS GROS
                         scaled_img = pygame.transform.scale(img, (28, 28))
                         self.screen.blit(scaled_img, (pos_x - 14, pos_y - 14 + float_offset))
                     else:
@@ -299,24 +363,33 @@ class KitchenRenderer:
                 pygame.draw.circle(self.screen, ing_config["color"], 
                                  (pos_x, int(pos_y + float_offset)), 12)
             
-            # Marque de validation plus visible
-            pygame.draw.circle(self.screen, (50, 200, 50), (pos_x + 10, pos_y - 10), 4)
-            pygame.draw.circle(self.screen, (255, 255, 255), (pos_x + 10, pos_y - 10), 4, 1)
+            # Checkmark avec effet
+            check_x, check_y = pos_x + 10, pos_y - 10
+            pygame.draw.circle(self.screen, (50, 220, 50), (check_x, check_y), 5)
+            pygame.draw.circle(self.screen, (255, 255, 255), (check_x, check_y), 5, 1)
+            pygame.draw.circle(self.screen, (100, 255, 100), (check_x, check_y), 3)
 
     def draw_plating_station(self, asset_manager):
-        """Station d'assemblage avec assiettes - INGRÉDIENTS TRÈS VISIBLES"""
+        """Station d'assemblage moderne avec effets visuels sophistiqués"""
         import game_state
         current_time = time.time()
         
-        # Plan d'assemblage
+        # Ombre
+        shadow = pygame.Surface((self.plating_area['w'] + 6, self.plating_area['h'] + 6), pygame.SRCALPHA)
+        shadow.fill((0, 0, 0, 40))
+        self.screen.blit(shadow, (self.plating_area['x'] + 3, self.plating_area['y'] + 3))
+        
         plating_rect = pygame.Rect(self.plating_area['x'], self.plating_area['y'], 
                                   self.plating_area['w'], self.plating_area['h'])
-        draw_gradient_rect(self.screen, (240, 230, 220), (220, 210, 200), plating_rect)
+        draw_gradient_rect(self.screen, (250, 240, 230), (230, 220, 210), plating_rect)
         pygame.draw.rect(self.screen, (180, 150, 120), plating_rect, 3)
         
-        # Titre de la station
-        title = self.font_small.render("Station d'Assemblage", True, (80, 70, 60))
-        self.screen.blit(title, (self.plating_area['x'] + 10, self.plating_area['y'] - 18))
+        # Titre moderne
+        title_bg = pygame.Rect(self.plating_area['x'], self.plating_area['y'] - 30, 
+                              self.plating_area['w'], 25)
+        draw_gradient_rect(self.screen, (180, 150, 120), (160, 130, 100), title_bg)
+        title = self.font_small.render("STATION D'ASSEMBLAGE", True, (255, 255, 255))
+        self.screen.blit(title, (self.plating_area['x'] + 10, self.plating_area['y'] - 25))
         
         # Zone des assiettes vides (gauche)
         empty_plates_x = self.plating_area['x'] + 15
@@ -325,21 +398,24 @@ class KitchenRenderer:
         empty_plates_h = 70
         
         empty_rect = pygame.Rect(empty_plates_x, empty_plates_y, empty_plates_w, empty_plates_h)
-        pygame.draw.rect(self.screen, (255, 255, 255), empty_rect)
+        draw_gradient_rect(self.screen, (255, 255, 255), (245, 245, 250), empty_rect)
         pygame.draw.rect(self.screen, (200, 200, 200), empty_rect, 2)
         
-        # Assiettes empilées
+        # Assiettes empilées avec effet 3D
         for i in range(3):
-            plate_y = empty_plates_y + 12 + i * 3
+            plate_y = empty_plates_y + 15 + i * 4
             plate_x = empty_plates_x + empty_plates_w//2
             
-            # Assiette vide avec ombre
-            pygame.draw.circle(self.screen, (220, 220, 220), (plate_x + 1, plate_y + 1), 15)
-            pygame.draw.circle(self.screen, (255, 255, 255), (plate_x, plate_y), 15)
-            pygame.draw.circle(self.screen, (200, 200, 200), (plate_x, plate_y), 15, 1)
-            pygame.draw.circle(self.screen, (240, 240, 240), (plate_x, plate_y), 10)
+            # Ombre de l'assiette
+            pygame.draw.circle(self.screen, (180, 180, 180), (plate_x + 2, plate_y + 2), 16)
+            # Assiette
+            pygame.draw.circle(self.screen, (255, 255, 255), (plate_x, plate_y), 16)
+            pygame.draw.circle(self.screen, (240, 245, 250), (plate_x, plate_y), 12)
+            pygame.draw.circle(self.screen, (200, 200, 200), (plate_x, plate_y), 16, 1)
+            # Reflet
+            pygame.draw.circle(self.screen, (255, 255, 255), (plate_x - 4, plate_y - 4), 4)
         
-        # Zone d'assemblage du plat (centre)
+        # Zone d'assemblage centrale
         assembly_x = self.plating_area['x'] + 85
         assembly_y = self.plating_area['y'] + 20
         assembly_w = 70
@@ -347,141 +423,152 @@ class KitchenRenderer:
         
         assembly_rect = pygame.Rect(assembly_x, assembly_y, assembly_w, assembly_h)
         
-        # Vérifier s'il y a un plat en cours d'assemblage
         if hasattr(game_state, 'plated_dish') and game_state.plated_dish:
-            # Assiette avec plat assemblé
-            pygame.draw.rect(self.screen, (250, 250, 200), assembly_rect)
-            pygame.draw.rect(self.screen, (200, 180, 100), assembly_rect, 2)
+            # Plat assemblé avec effets
+            draw_gradient_rect(self.screen, (255, 250, 220), (245, 235, 200), assembly_rect)
+            pygame.draw.rect(self.screen, (220, 180, 100), assembly_rect, 2)
             
-            # Assiette de base
             plate_center_x = assembly_x + assembly_w//2
             plate_center_y = assembly_y + assembly_h//2
             
-            pygame.draw.circle(self.screen, (255, 255, 255), (plate_center_x, plate_center_y), 22)
-            pygame.draw.circle(self.screen, (240, 240, 240), (plate_center_x, plate_center_y), 18)
-            pygame.draw.circle(self.screen, (200, 200, 200), (plate_center_x, plate_center_y), 22, 2)
+            # Assiette principale avec brillance
+            pygame.draw.circle(self.screen, (255, 255, 255), (plate_center_x, plate_center_y), 24)
+            pygame.draw.circle(self.screen, (245, 245, 250), (plate_center_x, plate_center_y), 20)
+            pygame.draw.circle(self.screen, (200, 200, 200), (plate_center_x, plate_center_y), 24, 2)
             
-            # Ingrédients sur l'assiette - ÉNORMES ET TRÈS VISIBLES
-            dish_name = game_state.plated_dish
+            # Reflet sur l'assiette
+            pygame.draw.circle(self.screen, (255, 255, 255), 
+                             (plate_center_x - 6, plate_center_y - 6), 6)
+            
+            # Ingrédients sur l'assiette avec animation
             for idx, ingredient in enumerate(game_state.prepared_ingredients):
                 angle = (idx * 2 * math.pi) / max(1, len(game_state.prepared_ingredients))
-                radius = 14  # Augmenté pour plus d'espace
-                ing_x = plate_center_x + math.cos(angle) * radius
-                ing_y = plate_center_y + math.sin(angle) * radius
-                
-                # Animation de rotation lente
+                radius = 14
                 rotation = current_time * 0.5 + idx
-                final_x = ing_x + math.cos(rotation) * 1.5
-                final_y = ing_y + math.sin(rotation) * 1.5
+                
+                ing_x = plate_center_x + math.cos(angle) * radius + math.cos(rotation) * 1.5
+                ing_y = plate_center_y + math.sin(angle) * radius + math.sin(rotation) * 1.5
                 
                 ing_config = self.ingredient_config.get(ingredient, {"color": (150, 150, 150)})
+                
+                # Halo autour de chaque ingrédient
+                glow_surf = pygame.Surface((32, 32), pygame.SRCALPHA)
+                glow_color = ing_config["color"]
+                pygame.draw.circle(glow_surf, (glow_color[0], glow_color[1], glow_color[2], 40), 
+                                 (16, 16), 14)
+                self.screen.blit(glow_surf, (ing_x - 16, ing_y - 16))
                 
                 try:
                     if asset_manager:
                         img = asset_manager.get_ingredient_image(ingredient)
                         if img:
-                            # INGRÉDIENTS ÉNORMES SUR L'ASSIETTE
                             scaled_img = pygame.transform.scale(img, (24, 24))
-                            self.screen.blit(scaled_img, (final_x - 12, final_y - 12))
+                            self.screen.blit(scaled_img, (ing_x - 12, ing_y - 12))
                         else:
                             pygame.draw.circle(self.screen, ing_config["color"], 
-                                             (int(final_x), int(final_y)), 10)
+                                             (int(ing_x), int(ing_y)), 10)
                     else:
                         pygame.draw.circle(self.screen, ing_config["color"], 
-                                         (int(final_x), int(final_y)), 10)
+                                         (int(ing_x), int(ing_y)), 10)
                 except:
                     pygame.draw.circle(self.screen, ing_config["color"], 
-                                     (int(final_x), int(final_y)), 10)
+                                     (int(ing_x), int(ing_y)), 10)
             
-            # Effet de brillance sur le plat fini
-            glow = math.sin(current_time * 3) * 8 + 12
-            glow_surf = pygame.Surface((50, 50), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf, (255, 255, 150, int(glow)), (25, 25), 24)
-            self.screen.blit(glow_surf, (plate_center_x - 25, plate_center_y - 25))
+            # Effet de brillance pulsante
+            glow = int(15 + 10 * math.sin(current_time * 3))
+            glow_surf = pygame.Surface((60, 60), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (255, 255, 150, glow), (30, 30), 28)
+            self.screen.blit(glow_surf, (plate_center_x - 30, plate_center_y - 30))
             
         else:
-            # Zone d'assemblage vide
-            pygame.draw.rect(self.screen, (245, 245, 245), assembly_rect)
+            # Zone vide en attente
+            draw_gradient_rect(self.screen, (250, 250, 250), (235, 235, 240), assembly_rect)
             pygame.draw.rect(self.screen, (180, 180, 180), assembly_rect, 2)
             
-            # Indicateur "Prêt à assembler"
             if game_state.prepared_ingredients:
-                ready_text = self.font_small.render("Prêt", True, (100, 200, 100))
-                text_rect = ready_text.get_rect(center=(assembly_x + assembly_w//2, assembly_y + assembly_h//2))
+                ready_text = self.font_small.render("PRÊT", True, (100, 220, 100))
+                text_rect = ready_text.get_rect(center=(assembly_x + assembly_w//2, 
+                                                        assembly_y + assembly_h//2))
+                
+                # Effet pulsant
+                pulse = int(20 + 15 * math.sin(current_time * 4))
+                glow_surf = pygame.Surface((60, 30), pygame.SRCALPHA)
+                glow_surf.fill((100, 255, 100, pulse))
+                self.screen.blit(glow_surf, (text_rect.x - 10, text_rect.y - 5))
+                
                 self.screen.blit(ready_text, text_rect)
         
-        # Zone de plats finis (droite) - plus petite
-        finished_x = self.plating_area['x'] + 165
-        finished_y = self.plating_area['y'] + 20
-        finished_w = 30
-        finished_h = 70
-        
-        finished_rect = pygame.Rect(finished_x, finished_y, finished_w, finished_h)
-        pygame.draw.rect(self.screen, (200, 255, 200), finished_rect)
-        pygame.draw.rect(self.screen, (150, 200, 150), finished_rect, 2)
-        
-        # Position pour l'assemblage
         self.plating_position = (assembly_x + assembly_w//2, assembly_y + assembly_h//2)
 
     def draw_service_station(self):
-        """Station de service pour la livraison finale"""
-        # Comptoir de service
+        """Station de service moderne avec effets lumineux"""
         service_rect = pygame.Rect(self.service_area['x'], self.service_area['y'], 
                                   self.service_area['w'], self.service_area['h'])
         
-        # Effet lumineux
-        glow_intensity = int(20 + 10 * math.sin(time.time() * 2))
-        for i in range(3, 0, -1):
-            alpha = glow_intensity // i
-            glow_surf = pygame.Surface((self.service_area['w'] + i*4, 
-                                      self.service_area['h'] + i*4), pygame.SRCALPHA)
-            pygame.draw.rect(glow_surf, (255, 215, 0, alpha), 
-                           (0, 0, self.service_area['w'] + i*4, self.service_area['h'] + i*4))
-            self.screen.blit(glow_surf, (self.service_area['x'] - i*2, self.service_area['y'] - i*2))
+        # Ombre
+        shadow = pygame.Surface((self.service_area['w'] + 6, self.service_area['h'] + 6), pygame.SRCALPHA)
+        shadow.fill((0, 0, 0, 50))
+        self.screen.blit(shadow, (self.service_area['x'] + 3, self.service_area['y'] + 3))
         
-        draw_gradient_rect(self.screen, (255, 200, 100), (220, 160, 60), service_rect)
+        # Effet lumineux animé
+        glow_intensity = int(25 + 15 * math.sin(time.time() * 2))
+        for i in range(4, 0, -1):
+            alpha = glow_intensity // i
+            glow_surf = pygame.Surface((self.service_area['w'] + i*6, 
+                                      self.service_area['h'] + i*6), pygame.SRCALPHA)
+            pygame.draw.rect(glow_surf, (255, 215, 0, alpha), 
+                           (0, 0, self.service_area['w'] + i*6, self.service_area['h'] + i*6))
+            self.screen.blit(glow_surf, (self.service_area['x'] - i*3, self.service_area['y'] - i*3))
+        
+        draw_gradient_rect(self.screen, (255, 210, 120), (230, 170, 80), service_rect)
         pygame.draw.rect(self.screen, (200, 150, 50), service_rect, 3)
         
-        # Titre
-        title = self.font_small.render("Service", True, (120, 80, 30))
-        self.screen.blit(title, (self.service_area['x'] + 10, self.service_area['y'] - 18))
+        # Titre moderne
+        title_bg = pygame.Rect(self.service_area['x'], self.service_area['y'] - 30, 
+                              self.service_area['w'], 25)
+        draw_gradient_rect(self.screen, (200, 150, 50), (180, 130, 30), title_bg)
+        title = self.font_small.render("SERVICE", True, (255, 255, 255))
+        self.screen.blit(title, (self.service_area['x'] + 10, self.service_area['y'] - 25))
         
-        # Zone de livraison avec plateaux
+        # Plateaux de service avec effet 3D
         for i in range(2):
-            tray_y = self.service_area['y'] + 60 + i * 90
+            tray_y = self.service_area['y'] + 70 + i * 100
             tray_x = self.service_area['x'] + self.service_area['w']//2
             
-            # Plateau de service
-            pygame.draw.circle(self.screen, (255, 255, 255), (tray_x, tray_y), 25)
-            pygame.draw.circle(self.screen, (220, 220, 220), (tray_x, tray_y), 20)
-            pygame.draw.circle(self.screen, (180, 180, 180), (tray_x, tray_y), 25, 2)
+            # Ombre du plateau
+            pygame.draw.circle(self.screen, (180, 180, 180), (tray_x + 2, tray_y + 2), 27)
+            
+            # Plateau principal
+            pygame.draw.circle(self.screen, (255, 255, 255), (tray_x, tray_y), 27)
+            pygame.draw.circle(self.screen, (230, 230, 230), (tray_x, tray_y), 22)
+            pygame.draw.circle(self.screen, (180, 180, 180), (tray_x, tray_y), 27, 2)
+            
+            # Reflets
+            pygame.draw.circle(self.screen, (255, 255, 255), (tray_x - 8, tray_y - 8), 6)
+            pygame.draw.circle(self.screen, (240, 240, 240), (tray_x + 6, tray_y + 6), 4)
 
     def draw_chef_enhanced(self, bot, asset_manager):
-        """Chef avec animations améliorées - INGRÉDIENTS TRÈS VISIBLES"""
+        """Chef avec animations améliorées"""
         base_x, base_y = bot.x, bot.y
         current_time = time.time()
         
         # Animation selon l'état
         if bot.state == "cutting" and bot.preparing:
-            # Vibration pendant la découpe
             shake = math.sin(current_time * 25) * 1.5
             base_x += shake
             base_y += shake * 0.5
             
-            # Couteau animé
             if hasattr(self, 'cutting_position'):
                 knife_x, knife_y = self.cutting_position
                 knife_movement = math.sin(current_time * 12) * 8
                 
-                # Dessiner le couteau
+                # Couteau
                 knife_color = (200, 200, 200)
                 knife_handle = (160, 120, 80)
                 
-                # Lame
                 pygame.draw.line(self.screen, knife_color, 
                                (knife_x - 3, knife_y - 15 + knife_movement), 
                                (knife_x + 3, knife_y + 5 + knife_movement), 4)
-                # Manche
                 pygame.draw.circle(self.screen, knife_handle, 
                                  (knife_x, knife_y + 10 + knife_movement), 8)
                 
@@ -492,14 +579,14 @@ class KitchenRenderer:
                         py = knife_y + (hash(str(current_time*3)) % 15) - 5
                         pygame.draw.circle(self.screen, (255, 255, 150), (px, py), 1)
                 
-                # AFFICHER L'INGRÉDIENT EN COURS DE PRÉPARATION - ÉNORME ET TRÈS VISIBLE
+                # Ingrédient en préparation
                 if bot.preparing:
                     ing_config = self.ingredient_config.get(bot.preparing, {"color": (150, 150, 150)})
                     try:
                         if asset_manager:
                             img = asset_manager.get_ingredient_image(bot.preparing)
                             if img:
-                                scaled_img = pygame.transform.scale(img, (50, 50))  # ÉNORME
+                                scaled_img = pygame.transform.scale(img, (50, 50))
                                 self.screen.blit(scaled_img, (knife_x - 25, knife_y - 25))
                             else:
                                 pygame.draw.circle(self.screen, ing_config["color"], 
@@ -511,50 +598,47 @@ class KitchenRenderer:
                         pygame.draw.circle(self.screen, ing_config["color"], 
                                          (knife_x, knife_y), 22)
         
-        # Animation d'assemblage
         elif bot.state == "plating" and hasattr(bot, 'plating') and bot.plating:
-            # Animation de mélange/assemblage
             mix_movement = math.sin(current_time * 10) * 3
             base_x += mix_movement
             
-            # Spatule animée
             if hasattr(self, 'plating_position'):
                 spatula_x, spatula_y = self.plating_position
                 spatula_angle = math.sin(current_time * 8) * 0.5
                 
-                # Dessiner la spatule
-                spatula_color = (180, 180, 180)
-                pygame.draw.line(self.screen, spatula_color,
+                pygame.draw.line(self.screen, (180, 180, 180),
                                (spatula_x, spatula_y - 20),
                                (spatula_x + math.cos(spatula_angle) * 15, 
                                 spatula_y + math.sin(spatula_angle) * 15), 3)
         
-        # Animation de marche
         elif bot.state in ["going_to_fridge", "going_to_board", "going_to_plating", "going_to_delivery"]:
             walk_cycle = math.sin(bot.animation_time * 8) * 3
             base_y -= abs(walk_cycle)
         
-        # Utiliser la méthode draw_chef du bot au lieu de dessiner un cercle
-        # Sauvegarder position actuelle et temporairement modifier pour l'animation
+        # Dessiner le chef
         original_x, original_y = bot.x, bot.y
         bot.x, bot.y = base_x, base_y
-        bot.draw_chef(self.screen)  # Utilise la méthode du chef
+        bot.draw_chef(self.screen)
         bot.x, bot.y = original_x, original_y
         
-        # AFFICHER L'INGRÉDIENT QUE LE BOT TRANSPORTE - ÉNORME ET TRÈS VISIBLE
+        # Ingrédient transporté
         if bot.inv and bot.inv != "plated_dish":
             ing_config = self.ingredient_config.get(bot.inv, {"color": (150, 150, 150)})
-            # Position au-dessus du chef
             carry_x = base_x + 15
             carry_y = base_y - 25
-            # Animation de flottement
             float_offset = math.sin(current_time * 5) * 2
+            
+            # Halo
+            glow_surf = pygame.Surface((40, 40), pygame.SRCALPHA)
+            glow_color = ing_config["color"]
+            pygame.draw.circle(glow_surf, (glow_color[0], glow_color[1], glow_color[2], 50), 
+                             (20, 20), 18)
+            self.screen.blit(glow_surf, (carry_x - 20, carry_y - 20 + float_offset))
             
             try:
                 if asset_manager:
                     img = asset_manager.get_ingredient_image(bot.inv)
                     if img:
-                        # INGRÉDIENT TRANSPORTÉ ÉNORME
                         scaled_img = pygame.transform.scale(img, (32, 32))
                         self.screen.blit(scaled_img, (carry_x - 16, carry_y - 16 + float_offset))
                     else:
@@ -567,16 +651,15 @@ class KitchenRenderer:
                 pygame.draw.circle(self.screen, ing_config["color"], 
                                  (carry_x, int(carry_y + float_offset)), 14)
         
-        # AFFICHER LE PLAT DRESSÉ SI LE BOT LE TRANSPORTE - ÉNORME ET TRÈS VISIBLE
+        # Plat dressé transporté
         elif bot.inv == "plated_dish":
             import game_state
             
-            # Assiette transportée - BEAUCOUP PLUS GRANDE
             carry_x = base_x + 20
             carry_y = base_y - 30
             float_offset = math.sin(current_time * 3) * 1.5
             
-            # Assiette plus grande
+            # Assiette
             pygame.draw.circle(self.screen, (255, 255, 255), 
                              (carry_x, int(carry_y + float_offset)), 20)
             pygame.draw.circle(self.screen, (240, 240, 240), 
@@ -584,7 +667,7 @@ class KitchenRenderer:
             pygame.draw.circle(self.screen, (200, 200, 200), 
                              (carry_x, int(carry_y + float_offset)), 20, 2)
             
-            # Afficher les ingrédients sur l'assiette transportée - ÉNORMES
+            # Ingrédients sur l'assiette
             if hasattr(game_state, 'prepared_ingredients') and game_state.prepared_ingredients:
                 for idx, ingredient in enumerate(game_state.prepared_ingredients):
                     angle = (idx * 2 * math.pi) / max(1, len(game_state.prepared_ingredients))
@@ -598,7 +681,6 @@ class KitchenRenderer:
                         if asset_manager:
                             img = asset_manager.get_ingredient_image(ingredient)
                             if img:
-                                # INGRÉDIENTS ÉNORMES SUR L'ASSIETTE TRANSPORTÉE
                                 scaled_img = pygame.transform.scale(img, (20, 20))
                                 self.screen.blit(scaled_img, (ing_x - 10, ing_y - 10))
                             else:
@@ -611,25 +693,24 @@ class KitchenRenderer:
                         pygame.draw.circle(self.screen, ing_config["color"], 
                                          (int(ing_x), int(ing_y)), 8)
             
-            # Effet de brillance plus visible
+            # Brillance
             glow = math.sin(current_time * 4) * 8 + 15
             glow_surf = pygame.Surface((50, 50), pygame.SRCALPHA)
             pygame.draw.circle(glow_surf, (255, 255, 150, int(glow)), (25, 25), 22)
             self.screen.blit(glow_surf, (carry_x - 25, int(carry_y + float_offset) - 25))
         
-        # Indicateur d'état du bot au-dessus de la toque
+        # Indicateur d'état
         state_color = bot.get_state_color()
         pygame.draw.circle(self.screen, state_color, (int(base_x), int(base_y - 55)), 6)
         pygame.draw.circle(self.screen, (255, 255, 255), (int(base_x), int(base_y - 55)), 6, 1)
         
-        # Affichage du nom du chef et de son état
+        # Nom et état
         chef_info = f"{bot.chef_name}: {bot.get_state_text()}"
         info_text = self.font_small.render(chef_info, True, (60, 60, 60))
         info_rect = info_text.get_rect(center=(int(base_x), int(base_y - 70)))
         
-        # Fond semi-transparent pour le texte
         text_bg = pygame.Surface((info_rect.width + 8, info_rect.height + 4), pygame.SRCALPHA)
-        text_bg.fill((255, 255, 255, 180))
+        text_bg.fill((255, 255, 255, 200))
         self.screen.blit(text_bg, (info_rect.x - 4, info_rect.y - 2))
         self.screen.blit(info_text, info_rect)
 
@@ -643,52 +724,37 @@ class KitchenRenderer:
         }
 
     def render_full_kitchen(self, bot, asset_manager, timer):
-        """Rendu complet de la cuisine avec le chef cuisinier"""
-        # Sol
+        """Rendu complet de la cuisine"""
         self.draw_floor()
-        
-        # Stations individuelles d'ingrédients
         self.draw_individual_ingredient_stations(asset_manager)
-        
-        # Station de travail
         self.draw_work_station(asset_manager)
-        
-        # Station d'assemblage avec assiettes
         self.draw_plating_station(asset_manager)
-        
-        # Station de service
         self.draw_service_station()
         
-        # Mettre à jour les zones d'interaction pour le chef
         bot.update_interaction_zones(self.get_interaction_zones())
         
-        # Chef avec animations spécifiques
-        self.draw_chef_enhanced(bot, asset_manager)
+        # NE PAS dessiner le chef ici car il sera dessiné dans main.py
+        # pour éviter la duplication
         
-        # Affichage des informations du chef en bas
         self.draw_chef_status(bot)
     
     def draw_chef_status(self, bot):
-        """Affiche le statut détaillé du chef"""
+        """Statut du chef en bas de l'écran"""
         import game_state
         
-        # Zone d'information du chef
         status_y = HEIGHT - 60
         status_rect = pygame.Rect(10, status_y, WIDTH - 20, 50)
         
-        # Fond avec transparence
         status_bg = pygame.Surface((status_rect.width, status_rect.height), pygame.SRCALPHA)
-        status_bg.fill((30, 30, 30, 200))
+        status_bg.fill((30, 30, 30, 220))
         self.screen.blit(status_bg, status_rect)
-        pygame.draw.rect(self.screen, (100, 100, 100), status_rect, 2)
+        pygame.draw.rect(self.screen, (100, 150, 200), status_rect, 2)
         
-        # Informations du chef
         info_lines = [
             f"👨‍🍳 {bot.chef_name} | État: {bot.get_state_text()}",
             f"📍 Position: ({int(bot.x)}, {int(bot.y)}) | Cible: ({int(bot.target_x)}, {int(bot.target_y)})",
         ]
         
-        # Informations sur la commande en cours
         if game_state.current_order_name:
             order_info = f"🍽️ Commande: {game_state.current_order_name}"
             if game_state.prepared_ingredients:
@@ -697,7 +763,6 @@ class KitchenRenderer:
                 order_info += f" | Plat dressé: {game_state.plated_dish}"
             info_lines.append(order_info)
         
-        # Informations sur l'inventaire
         if bot.inv:
             if bot.inv == "plated_dish":
                 info_lines.append(f"🍽️ Transporte: Plat dressé prêt à servir")
@@ -712,8 +777,7 @@ class KitchenRenderer:
             plate_time_left = bot.PLATING_TIME - (time.time() - bot.plate_time)
             info_lines.append(f"🍽️ Assemble le plat (encore {plate_time_left:.1f}s)")
         
-        # Affichage du texte
         for i, line in enumerate(info_lines):
-            if i < 3:  # Limite à 3 lignes pour éviter le débordement
+            if i < 3:
                 text = self.font_small.render(line, True, (255, 255, 255))
                 self.screen.blit(text, (status_rect.x + 10, status_rect.y + 5 + i * 15))

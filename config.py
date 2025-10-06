@@ -40,7 +40,7 @@ recipes = {
 prep_times = {"L": 1.5, "T": 1.0, "B": 2.0, "C": 1.2, "H": 2.5}
 
 # Configuration du jeu
-GAME_DURATION = 180  # secondes
+GAME_DURATION = 60  # secondes
 BOT_SPEED = 3
 PARTICLE_COUNT = 6
 RESTOCK_INTERVAL = 4  # secondes
