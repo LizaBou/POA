@@ -18,6 +18,7 @@ COLORS = {
     'purple': (138, 43, 226),
     'orange': (255, 140, 0),
     'white': (255, 255, 255),
+    'text_black': (0, 0, 0),  # Couleur texte noir ajoutée
     'shadow': (50, 50, 50, 100)
 }
 
