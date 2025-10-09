@@ -1,3 +1,5 @@
+# kitchen.py
+
 import pygame
 import time
 import math
@@ -68,24 +70,32 @@ class KitchenRenderer:
         title = self.font_medium.render("STOCKAGE DES INGRÉDIENTS", True, (255, 255, 255))
         title_rect = title.get_rect(center=(self.storage_area['x'] + self.storage_area['w']//2, self.storage_area['y'] - 20))
         self.screen.blit(title, title_rect)
-        ingredient_types = list(set(ing["type"] for ing in game_state.ingredients)) or ["laitue", "tomate", "pain", "steak", "fromage"]
+        ingredient_types = list(set(ing["type"] for ing in game_state.ingredients))
+        if not ingredient_types:
+            ingredient_types = ["laitue", "tomate", "pain", "steak", "fromage"]
         cols = 4
         station_width = 65
         station_height = 70
         margin_x = 10
         margin_y = 12
+
+        self.ingredient_positions = {}
+
         for i, ingredient_type in enumerate(ingredient_types):
             col = i % cols
             row = i // cols
             station_x = self.storage_area['x'] + margin_x + col * (station_width + 18)
             station_y = self.storage_area['y'] + margin_y + row * (station_height + 18)
-            ing_config = self.ingredient_config.get(ingredient_type, {"color": (150, 150, 150), "icon": "?"})
-            available_ingredients = [ing for ing in game_state.ingredients if ing["type"] == ingredient_type and not ing["taken"] and current_time >= ing.get("spawn_time", 0)]
-            is_available = len(available_ingredients) > 0
+            self.ingredient_positions[ingredient_type] = (station_x + station_width//2, station_y + station_height//2)
             station_rect = pygame.Rect(station_x, station_y, station_width, station_height)
+
             shadow_surf = pygame.Surface((station_width + 2, station_height + 2), pygame.SRCALPHA)
             shadow_surf.fill((0, 0, 0, 40))
             self.screen.blit(shadow_surf, (station_x + 2, station_y + 2))
+
+            available_ingredients = [ing for ing in game_state.ingredients if ing["type"] == ingredient_type and not ing["taken"] and current_time >= ing.get("spawn_time", 0)]
+            is_available = len(available_ingredients) > 0
+
             if is_available:
                 draw_gradient_rect(self.screen, (240, 220, 180), (210, 180, 140), station_rect)
                 border_color = (130, 90, 40)
@@ -96,14 +106,18 @@ class KitchenRenderer:
                 border_color = (140, 120, 110)
                 status_color = (160, 140, 130)
                 glow_intensity = 0
+
             pygame.draw.rect(self.screen, border_color, station_rect, 2)
+
             if glow_intensity > 0:
                 glow_surf = pygame.Surface((station_width + 10, station_height + 10), pygame.SRCALPHA)
                 pygame.draw.rect(glow_surf, (180, 140, 70, glow_intensity), (0, 0, station_width + 10, station_height + 10), 3)
                 self.screen.blit(glow_surf, (station_x - 5, station_y - 5))
+
             storage_inner = pygame.Rect(station_x + 7, station_y + 25, 52, 34)
-            pygame.draw.rect(self.screen, ing_config["color"], storage_inner)
+            pygame.draw.rect(self.screen, self.ingredient_config.get(ingredient_type, {"color": (150, 150, 150)})["color"], storage_inner)
             pygame.draw.rect(self.screen, (100, 70, 30), storage_inner, 1)
+
             if is_available:
                 for j, ing in enumerate(available_ingredients[:4]):
                     ing_x = storage_inner.x + 14 + (j % 2) * 20
@@ -118,20 +132,24 @@ class KitchenRenderer:
                                 scaled_img = pygame.transform.scale(img, (16, 16))
                                 self.screen.blit(scaled_img, (ing_x - 8, float_y - 8))
                             else:
-                                pygame.draw.circle(self.screen, ing_config["color"], (ing_x, int(float_y)), 7)
+                                pygame.draw.circle(self.screen, self.ingredient_config.get(ingredient_type, {"color": (150, 150, 150)})["color"], (ing_x, int(float_y)), 7)
                         else:
-                            pygame.draw.circle(self.screen, ing_config["color"], (ing_x, int(float_y)), 7)
+                            pygame.draw.circle(self.screen, self.ingredient_config.get(ingredient_type, {"color": (150, 150, 150)})["color"], (ing_x, int(float_y)), 7)
                     except:
-                        pygame.draw.circle(self.screen, ing_config["color"], (ing_x, int(float_y)), 7)
+                        pygame.draw.circle(self.screen, self.ingredient_config.get(ingredient_type, {"color": (150, 150, 150)})["color"], (ing_x, int(float_y)), 7)
+
             label_bg = pygame.Rect(station_x, station_y, station_width, 20)
             overlay = pygame.Surface((station_width, 20), pygame.SRCALPHA)
             overlay.fill((255, 255, 255, 160))
             self.screen.blit(overlay, (station_x, station_y))
+
             label_text = self.font_small.render(ingredient_type.capitalize(), True, (50, 40, 20))
-            label_rect = label_text.get_rect(center=(station_x + station_width//2, station_y + 10))
+            label_rect = label_text.get_rect(center=(station_x + station_width // 2, station_y + 10))
             self.screen.blit(label_text, label_rect)
+
             led_x = station_x + station_width - 12
             led_y = station_y + 8
+
             if is_available:
                 halo_surf = pygame.Surface((16, 16), pygame.SRCALPHA)
                 pygame.draw.circle(halo_surf, (status_color[0], status_color[1], status_color[2], 40), (8, 8), 7)
@@ -567,6 +585,7 @@ class KitchenRenderer:
     def render_full_kitchen(self, bot, asset_manager, timer):
         self.draw_floor()
         self.draw_individual_ingredient_stations(asset_manager)
+        
         self.draw_work_station(asset_manager)
         self.draw_plating_station(asset_manager)
         self.draw_service_station()

@@ -2,6 +2,7 @@
 Bot entity - Système multi-agents VRAIMENT COMPÉTITIF
 ✅ Chaque chef prend SA PROPRE commande
 ✅ Travail simultané - AUCUNE attente
+✅ Va DIRECTEMENT au bac de l'ingrédient spécifique 🎯
 ✅ Utilise OrderManager pour gérer les commandes multiples
 """
 import time
@@ -162,6 +163,15 @@ class Bot:
             'plating_station': (525, 420),
             'delivery': (670, 330)
         }
+        
+        # 🎯 POSITIONS PRÉCISES DES BACS D'INGRÉDIENTS
+        self.ingredient_bins = {
+            'laitue': (120, 200),      # Bac de laitue
+            'tomate': (120, 280),      # Bac de tomates
+            'pain': (120, 360),        # Bac de pain
+            'steak': (120, 440),       # Bac de steak
+            'fromage': (120, 520)      # Bac de fromage
+        }
 
         self.chef_name = chef_name
         self.chef_hat_height = 25
@@ -190,6 +200,10 @@ class Bot:
     def update_interaction_zones(self, zones):
         """Met à jour les zones d'interaction"""
         self.interaction_zones = zones
+    
+    def update_ingredient_bins(self, bins):
+        """Met à jour les positions des bacs d'ingrédients"""
+        self.ingredient_bins = bins
 
     def distance_to(self, target_pos):
         if isinstance(target_pos, dict):
@@ -313,17 +327,33 @@ class Bot:
         if not self.inv and not self.preparing and not self.plating:
             needed_ingredient = self.get_next_needed_ingredient()
             if needed_ingredient:
-                self.state = "going_to_fridge"
-                self.target_x, self.target_y = self.interaction_zones['fridge_access']
-                print(f"👨‍🍳 {self.chef_name} va chercher: {needed_ingredient}")
+                # 🎯 VA DIRECTEMENT AU BAC DE L'INGRÉDIENT SPÉCIFIQUE
+                if needed_ingredient in self.ingredient_bins:
+                    self.target_x, self.target_y = self.ingredient_bins[needed_ingredient]
+                    self.state = f"going_to_{needed_ingredient}_bin"
+                    print(f"🎯 {self.chef_name} va au bac de {needed_ingredient} à ({self.target_x}, {self.target_y})")
+                else:
+                    # Fallback si le bac n'existe pas
+                    self.state = "going_to_fridge"
+                    self.target_x, self.target_y = self.interaction_zones['fridge_access']
+                    print(f"⚠️ {self.chef_name} va au frigo générique pour: {needed_ingredient}")
             elif self.are_all_ingredients_ready():
                 self.state = "ready_to_plate"
 
     def handle_interactions(self):
         if not self.is_at_target():
             return
-            
-        if self.state == "going_to_fridge" and not self.inv:
+        
+        # 🎯 GESTION DES BACS D'INGRÉDIENTS SPÉCIFIQUES
+        if self.state.startswith("going_to_") and self.state.endswith("_bin") and not self.inv:
+            needed_ingredient = self.get_next_needed_ingredient()
+            if needed_ingredient:
+                self.inv = needed_ingredient
+                print(f"✓ {self.chef_name} a pris {needed_ingredient} du bac spécifique!")
+                self.state = "going_to_board"
+        
+        # Fallback pour ancien système
+        elif self.state == "going_to_fridge" and not self.inv:
             needed_ingredient = self.get_next_needed_ingredient()
             if needed_ingredient:
                 self.inv = needed_ingredient
@@ -398,6 +428,11 @@ class Bot:
             return "Cherche commande"
         
         order_name = my_order['order_data']['name']
+        
+        # 🎯 Gestion des états de bacs spécifiques
+        if self.state.startswith("going_to_") and self.state.endswith("_bin"):
+            ingredient = self.state.replace("going_to_", "").replace("_bin", "")
+            return f"Va chercher {ingredient} 🎯"
         
         state_texts = {
             "idle": f"Travaille sur {order_name}",
