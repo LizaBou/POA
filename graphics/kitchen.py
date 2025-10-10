@@ -166,9 +166,7 @@ class KitchenRenderer:
                 qty_rect = qty_text.get_rect(center=(led_x, led_y + 18))
                 self.screen.blit(qty_text, qty_rect)
 
-
     def draw_work_station(self, asset_manager):
-        """Plan de travail marron avec texture bois améliorée"""
         shadow = pygame.Surface((self.work_area['w'] + 6, self.work_area['h'] + 6), pygame.SRCALPHA)
         shadow.fill((0, 0, 0, 40))
         self.screen.blit(shadow, (self.work_area['x'] + 3, self.work_area['y'] + 3))
@@ -203,7 +201,6 @@ class KitchenRenderer:
         self.draw_prepared_area(asset_manager)
         
         self.cutting_position = (cutting_x + cutting_w//2, cutting_y + cutting_h//2)
-
 
     def draw_prepared_area(self, asset_manager):
         import game_state
@@ -264,7 +261,6 @@ class KitchenRenderer:
             pygame.draw.circle(self.screen, (255, 255, 255), (check_x, check_y), 5, 1)
             pygame.draw.circle(self.screen, (180, 140, 70), (check_x, check_y), 3)
 
-
     def draw_plating_station(self, asset_manager):
         import game_state
         current_time = time.time()
@@ -317,49 +313,65 @@ class KitchenRenderer:
             plate_center_x = assembly_x + assembly_w//2
             plate_center_y = assembly_y + assembly_h//2
             
-            pygame.draw.circle(self.screen, (255, 255, 255), (plate_center_x, plate_center_y), 24)
-            pygame.draw.circle(self.screen, (245, 245, 230), (plate_center_x, plate_center_y), 20)
-            pygame.draw.circle(self.screen, (200, 200, 180), (plate_center_x, plate_center_y), 24, 2)
+            glow = int(30 + 20 * math.sin(current_time * 4))
+            glow_surf = pygame.Surface((100, 100), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (255, 255, 150, glow), (50, 50), 45)
+            self.screen.blit(glow_surf, (plate_center_x - 50, plate_center_y - 50))
+            
+            pygame.draw.circle(self.screen, (180, 180, 180), 
+                               (plate_center_x + 2, plate_center_y + 2), 32)
+            pygame.draw.circle(self.screen, (255, 255, 255), (plate_center_x, plate_center_y), 32)
+            pygame.draw.circle(self.screen, (245, 245, 230), (plate_center_x, plate_center_y), 28)
+            pygame.draw.circle(self.screen, (200, 200, 180), (plate_center_x, plate_center_y), 32, 3)
             
             pygame.draw.circle(self.screen, (255, 255, 255), 
-                               (plate_center_x - 6, plate_center_y - 6), 6)
+                               (plate_center_x - 8, plate_center_y - 8), 8)
             
             for idx, ingredient in enumerate(game_state.prepared_ingredients):
                 angle = (idx * 2 * math.pi) / max(1, len(game_state.prepared_ingredients))
-                radius = 14
+                radius = 18
                 rotation = current_time * 0.5 + idx
                 
-                ing_x = plate_center_x + math.cos(angle) * radius + math.cos(rotation) * 1.5
-                ing_y = plate_center_y + math.sin(angle) * radius + math.sin(rotation) * 1.5
+                ing_x = plate_center_x + math.cos(angle) * radius + math.cos(rotation) * 2
+                ing_y = plate_center_y + math.sin(angle) * radius + math.sin(rotation) * 2
                 
                 ing_config = self.ingredient_config.get(ingredient, {"color": (150, 150, 150)})
                 
-                glow_surf = pygame.Surface((32, 32), pygame.SRCALPHA)
+                glow_surf = pygame.Surface((60, 60), pygame.SRCALPHA)
                 glow_color = ing_config["color"]
-                pygame.draw.circle(glow_surf, (glow_color[0], glow_color[1], glow_color[2], 40), 
-                                   (16, 16), 14)
-                self.screen.blit(glow_surf, (ing_x - 16, ing_y - 16))
+                pygame.draw.circle(glow_surf, (glow_color[0], glow_color[1], glow_color[2], 100), 
+                                   (30, 30), 26)
+                self.screen.blit(glow_surf, (ing_x - 30, ing_y - 30))
                 
                 try:
                     if asset_manager:
                         img = asset_manager.get_ingredient_image(ingredient)
                         if img:
-                            scaled_img = pygame.transform.scale(img, (24, 24))
-                            self.screen.blit(scaled_img, (ing_x - 12, ing_y - 12))
+                            scaled_img = pygame.transform.scale(img, (40, 40))
+                            self.screen.blit(scaled_img, (ing_x - 20, ing_y - 20))
                         else:
                             pygame.draw.circle(self.screen, ing_config["color"], 
-                                               (int(ing_x), int(ing_y)), 10)
+                                               (int(ing_x), int(ing_y)), 16)
+                            pygame.draw.circle(self.screen, (255, 255, 255), 
+                                               (int(ing_x), int(ing_y)), 16, 3)
                     else:
                         pygame.draw.circle(self.screen, ing_config["color"], 
-                                           (int(ing_x), int(ing_y)), 10)
+                                           (int(ing_x), int(ing_y)), 16)
+                        pygame.draw.circle(self.screen, (255, 255, 255), 
+                                           (int(ing_x), int(ing_y)), 16, 3)
                 except:
                     pygame.draw.circle(self.screen, ing_config["color"], 
-                                       (int(ing_x), int(ing_y)), 10)
+                                       (int(ing_x), int(ing_y)), 16)
+                    pygame.draw.circle(self.screen, (255, 255, 255), 
+                                       (int(ing_x), int(ing_y)), 16, 3)
             
-            glow = int(15 + 10 * math.sin(current_time * 3))
-            glow_surf = pygame.Surface((60, 60), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf, (255, 255, 150, glow), (30, 30), 28)
-            self.screen.blit(glow_surf, (plate_center_x - 30, plate_center_y - 30))
+            for i in range(8):
+                star_angle = (i / 8) * 2 * math.pi + current_time * 2
+                star_radius = 40 + math.sin(current_time * 3 + i) * 5
+                star_x = plate_center_x + math.cos(star_angle) * star_radius
+                star_y = plate_center_y + math.sin(star_angle) * star_radius
+                pygame.draw.circle(self.screen, (255, 255, 150), 
+                                   (int(star_x), int(star_y)), 2)
             
         else:
             draw_gradient_rect(self.screen, (250, 250, 250), (235, 235, 230), assembly_rect)
@@ -370,15 +382,14 @@ class KitchenRenderer:
                 text_rect = ready_text.get_rect(center=(assembly_x + assembly_w//2, 
                                                        assembly_y + assembly_h//2))
                 
-                pulse = int(20 + 15 * math.sin(current_time * 4))
-                glow_surf = pygame.Surface((60, 30), pygame.SRCALPHA)
+                pulse = int(30 + 20 * math.sin(current_time * 5))
+                glow_surf = pygame.Surface((80, 40), pygame.SRCALPHA)
                 glow_surf.fill((100, 255, 100, pulse))
-                self.screen.blit(glow_surf, (text_rect.x - 10, text_rect.y - 5))
+                self.screen.blit(glow_surf, (text_rect.x - 15, text_rect.y - 8))
                 
                 self.screen.blit(ready_text, text_rect)
         
         self.plating_position = (assembly_x + assembly_w//2, assembly_y + assembly_h//2)
-
 
     def draw_service_station(self):
         service_rect = pygame.Rect(self.service_area['x'], self.service_area['y'], 
@@ -418,52 +429,77 @@ class KitchenRenderer:
             pygame.draw.circle(self.screen, (255, 255, 255), (tray_x - 8, tray_y - 8), 6)
             pygame.draw.circle(self.screen, (240, 240, 240), (tray_x + 6, tray_y + 6), 4)
 
-
     def draw_chef_enhanced(self, bot, asset_manager):
         base_x, base_y = bot.x, bot.y
         current_time = time.time()
         
+        # AFFICHAGE DE L'INGRÉDIENT SUR LA PLANCHE AVANT DE DESSINER LE CHEF
         if bot.state == "cutting" and bot.preparing:
+            board_x = self.work_area['x'] + 55
+            board_y = self.work_area['y'] + 55
+            
+            ing_config = self.ingredient_config.get(bot.preparing, {"color": (150, 150, 150)})
+            
+            # Ombre très visible
+            shadow_surf = pygame.Surface((100, 100), pygame.SRCALPHA)
+            shadow_surf.fill((0, 0, 0, 100))
+            self.screen.blit(shadow_surf, (board_x - 48, board_y - 46))
+            
+            # Glow très lumineux
+            glow_surf = pygame.Surface((140, 140), pygame.SRCALPHA)
+            glow_color = ing_config["color"]
+            pygame.draw.circle(glow_surf, (glow_color[0], glow_color[1], glow_color[2], 120), 
+                               (70, 70), 60)
+            self.screen.blit(glow_surf, (board_x - 70, board_y - 70))
+            
+            # Ingrédient TRÈS GRAND (90x90 pixels)
+            try:
+                if asset_manager:
+                    img = asset_manager.get_ingredient_image(bot.preparing)
+                    if img:
+                        scaled_img = pygame.transform.scale(img, (90, 90))
+                        self.screen.blit(scaled_img, (board_x - 45, board_y - 45))
+                    else:
+                        pygame.draw.circle(self.screen, ing_config["color"], (board_x, board_y), 40)
+                        pygame.draw.circle(self.screen, (255, 255, 255), (board_x, board_y), 40, 3)
+                else:
+                    pygame.draw.circle(self.screen, ing_config["color"], (board_x, board_y), 40)
+                    pygame.draw.circle(self.screen, (255, 255, 255), (board_x, board_y), 40, 3)
+            except:
+                pygame.draw.circle(self.screen, ing_config["color"], (board_x, board_y), 40)
+                pygame.draw.circle(self.screen, (255, 255, 255), (board_x, board_y), 40, 3)
+            
+            # Particules de découpe très visibles
+            for i in range(8):
+                angle = (i / 8) * 2 * math.pi + current_time * 2
+                radius = 50 + math.sin(current_time * 5 + i) * 10
+                px = board_x + math.cos(angle) * radius
+                py = board_y + math.sin(angle) * radius
+                particle_size = 3 + int(math.sin(current_time * 10 + i) * 2)
+                pygame.draw.circle(self.screen, glow_color, (int(px), int(py)), particle_size)
+            
+            # Animation du couteau par-dessus
             shake = math.sin(current_time * 25) * 1.5
             base_x += shake
             base_y += shake * 0.5
             
             if hasattr(self, 'cutting_position'):
                 knife_x, knife_y = self.cutting_position
-                knife_movement = math.sin(current_time * 12) * 8
+                knife_movement = math.sin(current_time * 12) * 10
                 
-                knife_color = (200, 200, 200)
-                knife_handle = (160, 120, 80)
+                # Couteau plus grand et visible
+                pygame.draw.line(self.screen, (220, 220, 220), 
+                                 (knife_x - 4, knife_y - 20 + knife_movement), 
+                                 (knife_x + 4, knife_y + 10 + knife_movement), 5)
+                pygame.draw.circle(self.screen, (160, 120, 80), 
+                                   (knife_x, knife_y + 15 + knife_movement), 10)
                 
-                pygame.draw.line(self.screen, knife_color, 
-                                 (knife_x - 3, knife_y - 15 + knife_movement), 
-                                 (knife_x + 3, knife_y + 5 + knife_movement), 4)
-                pygame.draw.circle(self.screen, knife_handle, 
-                                   (knife_x, knife_y + 10 + knife_movement), 8)
-                
-                if int(current_time * 20) % 4 == 0:
-                    for _ in range(3):
-                        px = knife_x + (hash(str(current_time)) % 20) - 10
-                        py = knife_y + (hash(str(current_time*3)) % 15) - 5
-                        pygame.draw.circle(self.screen, (255, 255, 150), (px, py), 1)
-                
-                if bot.preparing:
-                    ing_config = self.ingredient_config.get(bot.preparing, {"color": (150, 150, 150)})
-                    try:
-                        if asset_manager:
-                            img = asset_manager.get_ingredient_image(bot.preparing)
-                            if img:
-                                scaled_img = pygame.transform.scale(img, (50, 50))
-                                self.screen.blit(scaled_img, (knife_x - 25, knife_y - 25))
-                            else:
-                                pygame.draw.circle(self.screen, ing_config["color"], 
-                                                   (knife_x, knife_y), 22)
-                        else:
-                            pygame.draw.circle(self.screen, ing_config["color"], 
-                                               (knife_x, knife_y), 22)
-                    except:
-                        pygame.draw.circle(self.screen, ing_config["color"], 
-                                           (knife_x, knife_y), 22)
+                # Éclats lumineux
+                if int(current_time * 20) % 3 == 0:
+                    for _ in range(5):
+                        px = knife_x + (hash(str(current_time)) % 30) - 15
+                        py = knife_y + (hash(str(current_time*3)) % 25) - 10
+                        pygame.draw.circle(self.screen, (255, 255, 200), (px, py), 2)
         
         elif bot.state == "plating" and hasattr(bot, 'plating') and bot.plating:
             mix_movement = math.sin(current_time * 10) * 3
@@ -518,46 +554,80 @@ class KitchenRenderer:
         elif bot.inv == "plated_dish":
             import game_state
             
-            carry_x = base_x + 20
-            carry_y = base_y - 30
-            float_offset = math.sin(current_time * 3) * 1.5
+            carry_x = base_x + 25
+            carry_y = base_y - 40
+            float_offset = math.sin(current_time * 3) * 2
             
+            # Glow doré TRÈS BRILLANT autour de l'assiette
+            glow = math.sin(current_time * 5) * 20 + 40
+            glow_surf = pygame.Surface((100, 100), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (255, 255, 150, int(glow)), (50, 50), 45)
+            self.screen.blit(glow_surf, (carry_x - 50, int(carry_y + float_offset) - 50))
+            
+            # Assiette TRÈS GRANDE
+            pygame.draw.circle(self.screen, (180, 180, 180), 
+                               (carry_x + 2, int(carry_y + float_offset) + 2), 32)
             pygame.draw.circle(self.screen, (255, 255, 255), 
-                               (carry_x, int(carry_y + float_offset)), 20)
-            pygame.draw.circle(self.screen, (240, 240, 240), 
-                               (carry_x, int(carry_y + float_offset)), 16)
-            pygame.draw.circle(self.screen, (200, 200, 200), 
-                               (carry_x, int(carry_y + float_offset)), 20, 2)
+                               (carry_x, int(carry_y + float_offset)), 32)
+            pygame.draw.circle(self.screen, (245, 245, 230), 
+                               (carry_x, int(carry_y + float_offset)), 28)
+            pygame.draw.circle(self.screen, (200, 200, 180), 
+                               (carry_x, int(carry_y + float_offset)), 32, 3)
+            
+            # Brillance sur l'assiette
+            pygame.draw.circle(self.screen, (255, 255, 255), 
+                               (carry_x - 8, int(carry_y + float_offset) - 8), 6)
             
             if hasattr(game_state, 'prepared_ingredients') and game_state.prepared_ingredients:
                 for idx, ingredient in enumerate(game_state.prepared_ingredients):
                     angle = (idx * 2 * math.pi) / max(1, len(game_state.prepared_ingredients))
-                    radius = 12
-                    ing_x = carry_x + math.cos(angle) * radius
-                    ing_y = carry_y + float_offset + math.sin(angle) * radius
+                    radius = 18
+                    rotation = current_time * 0.5
+                    ing_x = carry_x + math.cos(angle + rotation) * radius
+                    ing_y = carry_y + float_offset + math.sin(angle + rotation) * radius
                     
                     ing_config = self.ingredient_config.get(ingredient, {"color": (150, 150, 150)})
+                    
+                    # Glow TRÈS lumineux
+                    glow_surf = pygame.Surface((50, 50), pygame.SRCALPHA)
+                    glow_color = ing_config["color"]
+                    pygame.draw.circle(glow_surf, (glow_color[0], glow_color[1], glow_color[2], 100), 
+                                       (25, 25), 22)
+                    self.screen.blit(glow_surf, (ing_x - 25, ing_y - 25))
                     
                     try:
                         if asset_manager:
                             img = asset_manager.get_ingredient_image(ingredient)
                             if img:
-                                scaled_img = pygame.transform.scale(img, (20, 20))
-                                self.screen.blit(scaled_img, (ing_x - 10, ing_y - 10))
+                                # Taille TRÈS GRANDE (32x32)
+                                scaled_img = pygame.transform.scale(img, (32, 32))
+                                self.screen.blit(scaled_img, (ing_x - 16, ing_y - 16))
                             else:
                                 pygame.draw.circle(self.screen, ing_config["color"], 
-                                                   (int(ing_x), int(ing_y)), 8)
+                                                   (int(ing_x), int(ing_y)), 14)
+                                pygame.draw.circle(self.screen, (255, 255, 255), 
+                                                   (int(ing_x), int(ing_y)), 14, 2)
                         else:
                             pygame.draw.circle(self.screen, ing_config["color"], 
-                                               (int(ing_x), int(ing_y)), 8)
+                                               (int(ing_x), int(ing_y)), 14)
+                            pygame.draw.circle(self.screen, (255, 255, 255), 
+                                               (int(ing_x), int(ing_y)), 14, 2)
                     except:
                         pygame.draw.circle(self.screen, ing_config["color"], 
-                                           (int(ing_x), int(ing_y)), 8)
+                                           (int(ing_x), int(ing_y)), 14)
+                        pygame.draw.circle(self.screen, (255, 255, 255), 
+                                           (int(ing_x), int(ing_y)), 14, 2)
             
-            glow = math.sin(current_time * 4) * 8 + 15
-            glow_surf = pygame.Surface((50, 50), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf, (255, 255, 150, int(glow)), (25, 25), 22)
-            self.screen.blit(glow_surf, (carry_x - 25, int(carry_y + float_offset) - 25))
+            # Étoiles scintillantes autour du plat
+            for i in range(6):
+                star_angle = (i / 6) * 2 * math.pi + current_time * 2
+                star_radius = 45 + math.sin(current_time * 3 + i) * 5
+                star_x = carry_x + math.cos(star_angle) * star_radius
+                star_y = carry_y + float_offset + math.sin(star_angle) * star_radius
+                star_alpha = int(150 + 100 * math.sin(current_time * 5 + i))
+                if star_alpha > 0:
+                    pygame.draw.circle(self.screen, (255, 255, 200), 
+                                       (int(star_x), int(star_y)), 3)
         
         state_color = bot.get_state_color()
         pygame.draw.circle(self.screen, state_color, (int(base_x), int(base_y - 55)), 6)
@@ -572,7 +642,6 @@ class KitchenRenderer:
         self.screen.blit(text_bg, (info_rect.x - 4, info_rect.y - 2))
         self.screen.blit(info_text, info_rect)
 
-
     def get_interaction_zones(self):
         return {
             'fridge_access': (self.storage_area['floor_x'] + 140, self.storage_area['floor_y'] + 40),
@@ -580,7 +649,6 @@ class KitchenRenderer:
             'plating_station': (self.plating_area['floor_x'] + 100, self.plating_area['floor_y'] + 40),
             'delivery': (self.service_area['floor_x'] + 50, self.service_area['floor_y'] + 90)
         }
-
 
     def render_full_kitchen(self, bot, asset_manager, timer):
         self.draw_floor()
