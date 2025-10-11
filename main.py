@@ -3,6 +3,7 @@ Point d'entrée principal pour Mini Overcooked avec VRAIE COMPÉTITION MULTI-AGE
 ✅ Chaque chef prend SA PROPRE commande
 ✅ Travail simultané - PAS D'ATTENTE
 ✅ Utilise OrderManager pour gérer les commandes multiples
+✅ RENDU CORRIGÉ - Ingrédients bien visibles
 """
 import sys
 import os
@@ -23,7 +24,7 @@ def main():
         from graphics.kitchen import KitchenRenderer
         from graphics import ui, assets
         from entities.bot import Bot, BotManager
-        from entities.order_manager import OrderManager  # ⭐ NOUVEAU
+        from entities.order_manager import OrderManager
         import config
         
         print("✓ Tous les modules chargés")
@@ -191,7 +192,7 @@ def main():
                             bot.inv = None
                             bot.preparing = None
                             bot.plating = False
-                        print("🔧 DEBUG: Système complètement réinitialisé")
+                        print("🔧 DEBUG: Système complètement réinialisé")
                     
                     elif event.key == pygame.K_F3:
                         # Afficher les zones
@@ -278,30 +279,41 @@ def main():
                 import traceback
                 traceback.print_exc()
 
-            # Rendu
+            # 🎨 RENDU CORRIGÉ - Ingrédients bien visibles 🎨
             screen.fill((40, 40, 40))
             
-            # Rendu de la cuisine
             try:
                 if kitchen_renderer:
-                    primary_bot = bot_manager.bots[0] if bot_manager.bots else None
-                    if primary_bot:
-                        kitchen_renderer.render_full_kitchen(
-                            primary_bot, 
-                            asset_manager, 
-                            game_state.timer
-                        )
-                        
-                        # Dessiner tous les chefs
-                        for bot in bot_manager.bots:
-                            bot.draw_chef(screen)
+                    # 1️⃣ Dessiner la cuisine UNE SEULE FOIS
+                    kitchen_renderer.draw_floor()
+                    kitchen_renderer.draw_individual_ingredient_stations(asset_manager)
+                    kitchen_renderer.draw_work_station(asset_manager)
+                    kitchen_renderer.draw_plating_station(asset_manager)
+                    kitchen_renderer.draw_service_station()
+                    
+                    # 2️⃣ Mettre à jour les zones pour tous les bots
+                    zones = kitchen_renderer.get_interaction_zones()
+                    for bot in bot_manager.bots:
+                        bot.update_interaction_zones(zones)
+                    
+                    # 3️⃣ Dessiner TOUS les chefs avec leurs ingrédients (PAR-DESSUS)
+                    for bot in bot_manager.bots:
+                        kitchen_renderer.draw_chef_enhanced(bot, asset_manager)
+                    
+                    # 4️⃣ Afficher le statut du premier chef seulement
+                    if bot_manager.bots:
+                        kitchen_renderer.draw_chef_status(bot_manager.bots[0])
                 else:
                     draw_basic_kitchen(screen)
                     for bot in bot_manager.bots:
                         bot.draw_chef(screen)
             except Exception as e:
                 print(f"⚠ Erreur rendu cuisine: {e}")
+                import traceback
+                traceback.print_exc()
                 draw_basic_kitchen(screen)
+                for bot in bot_manager.bots:
+                    bot.draw_chef(screen)
             
             # Rendu de l'UI
             try:
