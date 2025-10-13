@@ -87,6 +87,7 @@ def main():
             bot_manager = BotManager()
             game_state.bot_manager = bot_manager
             
+    
             # Créer deux chefs
             chef1 = Bot(x=300, y=400, chef_name="Chef Marcel", color_variant=0)
             chef2 = Bot(x=500, y=400, chef_name="Chef Sophie", color_variant=1)
