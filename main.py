@@ -4,6 +4,7 @@ Point d'entrée principal pour Mini Overcooked avec VRAIE COMPÉTITION MULTI-AGE
 ✅ Travail simultané - PAS D'ATTENTE
 ✅ Utilise OrderManager pour gérer les commandes multiples
 ✅ RENDU CORRIGÉ - Ingrédients bien visibles
+✅ LIVRAISON AVEC ANIMATION 🚀
 """
 import sys
 import os
@@ -16,6 +17,7 @@ def main():
     print("=== MINI OVERCOOKED - VRAIE COMPÉTITION MULTI-AGENTS ===")
     print("🏆 Chaque chef prend SA PROPRE commande!")
     print("✅ TRAVAIL SIMULTANÉ - PAS D'ATTENTE")
+    print("🚀 LIVRAISON AVEC ANIMATION")
     print("Initialisation de l'interface graphique...")
     
     try:
@@ -45,6 +47,7 @@ def main():
         # Initialiser le renderer
         try:
             kitchen_renderer = KitchenRenderer(screen)
+            game_state.kitchen_renderer = kitchen_renderer  # ⭐ STOCKER DANS GAME_STATE
             print("✓ Renderer de cuisine initialisé")
         except Exception as e:
             print(f"❌ Erreur renderer: {e}")
@@ -87,7 +90,6 @@ def main():
             bot_manager = BotManager()
             game_state.bot_manager = bot_manager
             
-    
             # Créer deux chefs
             chef1 = Bot(x=300, y=400, chef_name="Chef Marcel", color_variant=0)
             chef2 = Bot(x=500, y=400, chef_name="Chef Sophie", color_variant=1)
@@ -125,6 +127,7 @@ def main():
         print("\n🎮 LANCEMENT DU JEU EN MODE COMPÉTITION RÉELLE 🎮")
         print("🏆 Chaque chef peut prendre SA PROPRE commande!")
         print("✅ Travail simultané - Les deux peuvent travailler en même temps!")
+        print("🚀 LIVRAISON AVEC ANIMATION!")
         print("\nRecettes disponibles:")
         for recipe, ingredients in game_state.available_ingredients.items():
             print(f"  - {recipe}: {', '.join(ingredients)}")
@@ -285,6 +288,10 @@ def main():
             
             try:
                 if kitchen_renderer:
+                    # 🚀 VÉRIFIER LES LIVRAISONS AVANT DE DESSINER
+                    for bot in bot_manager.bots:
+                        kitchen_renderer.check_delivery_trigger(bot)
+                    
                     # 1️⃣ Dessiner la cuisine UNE SEULE FOIS
                     kitchen_renderer.draw_floor()
                     kitchen_renderer.draw_individual_ingredient_stations(asset_manager)
@@ -294,16 +301,24 @@ def main():
                     
                     # 2️⃣ Mettre à jour les zones pour tous les bots
                     zones = kitchen_renderer.get_interaction_zones()
+                    
+                    # Mettre à jour les positions des bacs d'ingrédients
+                    bins = {}
+                    if hasattr(kitchen_renderer, 'ingredient_positions'):
+                        bins = kitchen_renderer.ingredient_positions
+                    
                     for bot in bot_manager.bots:
                         bot.update_interaction_zones(zones)
+                        if bins:
+                            bot.update_ingredient_bins(bins)
                     
                     # 3️⃣ Dessiner TOUS les chefs avec leurs ingrédients (PAR-DESSUS)
                     for bot in bot_manager.bots:
                         kitchen_renderer.draw_chef_enhanced(bot, asset_manager)
                     
-                    # 4️⃣ Afficher le statut du premier chef seulement
-                    if bot_manager.bots:
-                        kitchen_renderer.draw_chef_status(bot_manager.bots[0])
+                    # 4️⃣ Afficher le statut de TOUS les chefs
+                    for bot in bot_manager.bots:
+                        kitchen_renderer.draw_chef_status(bot)
                 else:
                     draw_basic_kitchen(screen)
                     for bot in bot_manager.bots:
@@ -326,10 +341,9 @@ def main():
                         getattr(game_state, 'combo', 0),
                         primary_bot,
                         game_state.user_input,
-                        None,  # Plus de current_order_name unique
-                        [],    # Plus de prepared_ingredients unique
-                        asset_manager,
-                       
+                        None,
+                        [],
+                        asset_manager
                     )
                     
                     # ⭐ Afficher le système de compétition à l'écran

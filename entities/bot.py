@@ -4,6 +4,7 @@ Bot entity - Système multi-agents VRAIMENT COMPÉTITIF
 ✅ Travail simultané - AUCUNE attente
 ✅ Va DIRECTEMENT au bac de l'ingrédient spécifique 🎯
 ✅ Utilise OrderManager pour gérer les commandes multiples
+✅ LIVRAISON AVEC ANIMATION 🚀
 """
 import time
 import math
@@ -142,8 +143,9 @@ class Bot:
         self.animation_time = 0
         self.bot_id = None
         self.frame_debug_counter = 0
+        self.delivery_start_time = 0  # 🚀 Pour l'animation de livraison
         
-        self.my_order = None  # Référence à MA commande
+        self.my_order = None
         self.motivation = 100
         self.competitiveness = 0.5 + (color_variant * 0.3)
         
@@ -161,16 +163,16 @@ class Bot:
             'fridge_access': (150, 350),
             'cutting_board': (350, 270),
             'plating_station': (525, 420),
-            'delivery': (670, 330)
+            'delivery': (850, 270)  # 🚀 ZONE DE LIVRAISON CORRIGÉE
         }
         
         # 🎯 POSITIONS PRÉCISES DES BACS D'INGRÉDIENTS
         self.ingredient_bins = {
-            'laitue': (120, 200),      # Bac de laitue
-            'tomate': (120, 280),      # Bac de tomates
-            'pain': (120, 360),        # Bac de pain
-            'steak': (120, 440),       # Bac de steak
-            'fromage': (120, 520)      # Bac de fromage
+            'laitue': (120, 200),
+            'tomate': (120, 280),
+            'pain': (120, 360),
+            'steak': (120, 440),
+            'fromage': (120, 520)
         }
 
         self.chef_name = chef_name
@@ -215,7 +217,19 @@ class Bot:
 
     def is_at_target(self):
         distance = self.distance_to((self.target_x, self.target_y))
-        return distance < 50
+        # Distance plus généreuse pour la livraison
+        threshold = 80 if self.state == "going_to_delivery" else 50
+        is_there = distance < threshold
+        
+        # Debug pour la livraison
+        if self.state == "going_to_delivery" and self.frame_debug_counter % 30 == 0:
+            print(f"🎯 {self.chef_name} va à delivery:")
+            print(f"   Position: ({self.x:.1f}, {self.y:.1f})")
+            print(f"   Target: ({self.target_x}, {self.target_y})")
+            print(f"   Distance: {distance:.1f} (seuil: {threshold})")
+            print(f"   Arrivé: {is_there}")
+        
+        return is_there
 
     def is_available(self):
         """Vérifie si le bot est disponible pour prendre une nouvelle commande"""
@@ -375,15 +389,38 @@ class Bot:
                 self.state = "plating"
         
         elif self.state == "going_to_delivery" and self.inv == "plated_dish":
-            print(f"🏆 {self.chef_name} LIVRE ET MARQUE DES POINTS!")
+            print(f"🚀🚀🚀 {self.chef_name} EST À LA ZONE DE LIVRAISON!")
+            print(f"   - État: {self.state}")
+            print(f"   - Inventaire: {self.inv}")
+            print(f"   - Position: ({self.x:.1f}, {self.y:.1f})")
+            print(f"   - Target: ({self.target_x}, {self.target_y})")
+            print(f"   - Distance: {self.distance_to((self.target_x, self.target_y)):.1f}")
+            
+            # 🚀 DÉCLENCHER L'ANIMATION DE LIVRAISON
+            self.state = "delivering"
+            self.delivery_start_time = time.time()
+            
+            my_order = self.get_my_order()
+            print(f"   - Commande: {my_order['order_data']['name'] if my_order else 'AUCUNE'}")
+            
+            if my_order and hasattr(game_state, 'kitchen_renderer'):
+                print(f"   ✅ kitchen_renderer trouvé - Animation déclenchée!")
+                game_state.kitchen_renderer.add_delivered_dish(my_order['order_data']['name'])
+            else:
+                print(f"   ❌ PROBLÈME:")
+                print(f"      - my_order existe: {my_order is not None}")
+                print(f"      - kitchen_renderer existe: {hasattr(game_state, 'kitchen_renderer')}")
             
             # Appeler le manager pour attribuer les points
             if hasattr(game_state, 'bot_manager'):
-                game_state.bot_manager.complete_order(self)
+                print(f"   💰 Attribution des points...")
+                score_gained = game_state.bot_manager.complete_order(self)
+                print(f"   💰 Points gagnés: {score_gained}")
             
             self.inv = None
             self.state = "idle"
             self.motivation = min(100, self.motivation + 10)
+            print(f"   ✅ LIVRAISON TERMINÉE - Retour à idle")
 
     def update_movement(self):
         """Met à jour le mouvement"""
@@ -400,7 +437,8 @@ class Bot:
                 self.x += move_x
                 self.y += move_y
         
-        self.x = max(60, min(740, self.x))
+        # 🚀 LIMITES ÉLARGIES POUR ATTEINDRE LA ZONE DE LIVRAISON
+        self.x = max(60, min(880, self.x))  # Élargi de 740 à 880
         self.y = max(120, min(540, self.y))
         self.animation_time += 0.04
         self.frame_debug_counter += 1
@@ -418,7 +456,8 @@ class Bot:
             "cutting": (255, 100, 100),
             "going_to_plating": (255, 150, 255),
             "plating": (200, 100, 255),
-            "going_to_delivery": (100, 255, 100)
+            "going_to_delivery": (100, 255, 100),
+            "delivering": (255, 215, 0)
         }
         return colors.get(self.state, (255, 255, 255))
 
@@ -441,7 +480,8 @@ class Bot:
             "cutting": f"Découpe {self.preparing or ''}",
             "going_to_plating": f"Va dresser {order_name}",
             "plating": f"Dresse {order_name}",
-            "going_to_delivery": f"🏆 Va livrer {order_name}!"
+            "going_to_delivery": f"🏆 Va livrer {order_name}!",
+            "delivering": f"🚀 LIVRE {order_name}!"
         }
         return state_texts.get(self.state, self.state)
 
