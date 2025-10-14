@@ -329,7 +329,7 @@ def main():
                         None,  # Plus de current_order_name unique
                         [],    # Plus de prepared_ingredients unique
                         asset_manager,
-                        plated_dish=None
+                       
                     )
                     
                     # ⭐ Afficher le système de compétition à l'écran

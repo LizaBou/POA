@@ -1,4 +1,4 @@
-# kitchen.py - CODE COMPLET avec 3 colonnes pour les bacs
+# kitchen.py - CORRECTION COMPLÈTE - Ingrédients BIEN VISIBLES
 
 import pygame
 import time
@@ -114,18 +114,24 @@ class KitchenRenderer:
                     ing["x"] = ing_x
                     ing["y"] = ing_y
                     float_y = ing_y + math.sin(current_time * 3 + j) * 1.5
-                    try:
-                        if asset_manager:
+                    
+                    # 🔥 TOUJOURS essayer d'afficher l'image d'abord
+                    img_displayed = False
+                    if asset_manager:
+                        try:
                             img = asset_manager.get_ingredient_image(ingredient_type)
                             if img:
                                 scaled_img = pygame.transform.scale(img, (16, 16))
                                 self.screen.blit(scaled_img, (ing_x - 8, float_y - 8))
-                            else:
-                                pygame.draw.circle(self.screen, self.ingredient_config.get(ingredient_type, {"color": (150, 150, 150)})["color"], (ing_x, int(float_y)), 7)
-                        else:
-                            pygame.draw.circle(self.screen, self.ingredient_config.get(ingredient_type, {"color": (150, 150, 150)})["color"], (ing_x, int(float_y)), 7)
-                    except:
-                        pygame.draw.circle(self.screen, self.ingredient_config.get(ingredient_type, {"color": (150, 150, 150)})["color"], (ing_x, int(float_y)), 7)
+                                img_displayed = True
+                        except Exception as e:
+                            print(f"⚠ Erreur affichage image {ingredient_type}: {e}")
+                    
+                    # Fallback : cercle coloré si l'image n'est pas affichée
+                    if not img_displayed:
+                        color = self.ingredient_config.get(ingredient_type, {"color": (150, 150, 150)})["color"]
+                        pygame.draw.circle(self.screen, color, (ing_x, int(float_y)), 7)
+                        pygame.draw.circle(self.screen, (255, 255, 255), (ing_x, int(float_y)), 7, 1)
 
             label_bg = pygame.Rect(station_x, station_y, station_width, 20)
             overlay = pygame.Surface((station_width, 20), pygame.SRCALPHA)
@@ -212,10 +218,14 @@ class KitchenRenderer:
         title = self.font_small.render("PRÉPARÉS", True, (255, 255, 255))
         self.screen.blit(title, (prepared_x + 5, prepared_y - 15))
         
-        for idx, ingredient in enumerate(game_state.prepared_ingredients):
-            if idx >= 8:
-                break
-                
+        # 🔥 RÉCUPÉRER LES INGRÉDIENTS PRÉPARÉS DE TOUS LES CHEFS
+        all_prepared = []
+        if hasattr(game_state, 'order_manager'):
+            # Utiliser chef_orders au lieu de active_orders
+            for chef_id, order_info in game_state.order_manager.chef_orders.items():
+                all_prepared.extend(order_info.get('prepared_ingredients', []))
+        
+        for idx, ingredient in enumerate(all_prepared[:8]):
             pos_x = prepared_x + 12 + (idx % 4) * 18
             pos_y = prepared_y + 12 + (idx // 4) * 22
             
@@ -302,7 +312,22 @@ class KitchenRenderer:
         
         assembly_rect = pygame.Rect(assembly_x, assembly_y, assembly_w, assembly_h)
         
-        if hasattr(game_state, 'plated_dish') and game_state.plated_dish:
+        # 🔥 AFFICHER LES PLATS EN COURS D'ASSEMBLAGE
+        plating_chefs = []
+        if hasattr(game_state, 'bot_manager'):
+            for bot in game_state.bot_manager.bots:
+                if bot.plating:
+                    order = bot.get_my_order()
+                    if order:
+                        plating_chefs.append({
+                            'bot': bot,
+                            'ingredients': order.get('prepared_ingredients', [])
+                        })
+        
+        if plating_chefs:
+            chef_data = plating_chefs[0]  # Afficher le premier
+            ingredients = chef_data['ingredients']
+            
             draw_gradient_rect(self.screen, (255, 250, 220), (245, 235, 200), assembly_rect)
             pygame.draw.rect(self.screen, (220, 180, 100), assembly_rect, 2)
             
@@ -323,8 +348,9 @@ class KitchenRenderer:
             pygame.draw.circle(self.screen, (255, 255, 255), 
                                (plate_center_x - 8, plate_center_y - 8), 8)
             
-            for idx, ingredient in enumerate(game_state.prepared_ingredients):
-                angle = (idx * 2 * math.pi) / max(1, len(game_state.prepared_ingredients))
+            # 🍔 AFFICHER LES INGRÉDIENTS SUR L'ASSIETTE
+            for idx, ingredient in enumerate(ingredients):
+                angle = (idx * 2 * math.pi) / max(1, len(ingredients))
                 radius = 22
                 rotation = current_time * 0.5 + idx
                 
@@ -374,18 +400,6 @@ class KitchenRenderer:
         else:
             draw_gradient_rect(self.screen, (250, 250, 250), (235, 235, 230), assembly_rect)
             pygame.draw.rect(self.screen, (180, 180, 180), assembly_rect, 2)
-            
-            if game_state.prepared_ingredients:
-                ready_text = self.font_small.render("PRÊT", True, (100, 220, 100))
-                text_rect = ready_text.get_rect(center=(assembly_x + assembly_w//2, 
-                                                       assembly_y + assembly_h//2))
-                
-                pulse = int(30 + 20 * math.sin(current_time * 5))
-                glow_surf = pygame.Surface((80, 40), pygame.SRCALPHA)
-                glow_surf.fill((100, 255, 100, pulse))
-                self.screen.blit(glow_surf, (text_rect.x - 15, text_rect.y - 8))
-                
-                self.screen.blit(ready_text, text_rect)
         
         self.plating_position = (assembly_x + assembly_w//2, assembly_y + assembly_h//2)
 
@@ -431,92 +445,91 @@ class KitchenRenderer:
         base_x, base_y = bot.x, bot.y
         current_time = time.time()
         
-        # 🔥 Ingrédient sur la planche - BIEN VISIBLE 🔥
+        # 🔥 INGRÉDIENT SUR LA PLANCHE - ULTRA VISIBLE 🔥
         if bot.state == "cutting" and bot.preparing:
             board_x = self.work_area['x'] + 55
             board_y = self.work_area['y'] + 55
             
             ing_config = self.ingredient_config.get(bot.preparing, {"color": (150, 150, 150)})
             
-            # Fond blanc pour contraste
-            pygame.draw.circle(self.screen, (255, 255, 255), (board_x, board_y), 45)
-            pygame.draw.circle(self.screen, (240, 240, 240), (board_x, board_y), 42)
+            # Fond blanc éclatant
+            pygame.draw.circle(self.screen, (255, 255, 255), (board_x, board_y), 50)
             
-            # Ombre forte
-            shadow_surf = pygame.Surface((100, 100), pygame.SRCALPHA)
-            shadow_surf.fill((0, 0, 0, 150))
-            self.screen.blit(shadow_surf, (board_x - 48, board_y - 46))
+            # Ombre massive
+            shadow_surf = pygame.Surface((120, 120), pygame.SRCALPHA)
+            pygame.draw.circle(shadow_surf, (0, 0, 0, 180), (60, 60), 55)
+            self.screen.blit(shadow_surf, (board_x - 58, board_y - 58))
             
-            # Glow amélioré
-            glow_pulse = int(120 + 40 * math.sin(current_time * 4))
-            glow_surf = pygame.Surface((120, 120), pygame.SRCALPHA)
+            # Glow TRÈS visible
+            glow_pulse = int(150 + 50 * math.sin(current_time * 5))
+            glow_surf = pygame.Surface((140, 140), pygame.SRCALPHA)
             glow_color = ing_config["color"]
             pygame.draw.circle(glow_surf, (glow_color[0], glow_color[1], glow_color[2], glow_pulse), 
-                               (60, 60), 55)
-            self.screen.blit(glow_surf, (board_x - 60, board_y - 60))
+                               (70, 70), 65)
+            self.screen.blit(glow_surf, (board_x - 70, board_y - 70))
             
-            # Ingrédient taille originale (30x30)
+            # 🌟 INGRÉDIENT GÉANT (50x50 pixels) 🌟
             try:
                 if asset_manager:
                     img = asset_manager.get_ingredient_image(bot.preparing)
                     if img:
-                        scaled_img = pygame.transform.scale(img, (30, 30))
-                        self.screen.blit(scaled_img, (board_x - 15, board_y - 15))
+                        scaled_img = pygame.transform.scale(img, (50, 50))
+                        self.screen.blit(scaled_img, (board_x - 25, board_y - 25))
                     else:
-                        pygame.draw.circle(self.screen, ing_config["color"], (board_x, board_y), 14)
-                        pygame.draw.circle(self.screen, (255, 255, 255), (board_x, board_y), 14, 3)
+                        pygame.draw.circle(self.screen, ing_config["color"], (board_x, board_y), 22)
+                        pygame.draw.circle(self.screen, (255, 255, 255), (board_x, board_y), 22, 4)
                 else:
-                    pygame.draw.circle(self.screen, ing_config["color"], (board_x, board_y), 14)
-                    pygame.draw.circle(self.screen, (255, 255, 255), (board_x, board_y), 14, 3)
+                    pygame.draw.circle(self.screen, ing_config["color"], (board_x, board_y), 22)
+                    pygame.draw.circle(self.screen, (255, 255, 255), (board_x, board_y), 22, 4)
             except:
-                pygame.draw.circle(self.screen, ing_config["color"], (board_x, board_y), 14)
-                pygame.draw.circle(self.screen, (255, 255, 255), (board_x, board_y), 14, 3)
+                pygame.draw.circle(self.screen, ing_config["color"], (board_x, board_y), 22)
+                pygame.draw.circle(self.screen, (255, 255, 255), (board_x, board_y), 22, 4)
             
-            # Particules de découpe
-            for i in range(10):
-                angle = (i / 10) * 2 * math.pi + current_time * 2
-                radius = 50 + math.sin(current_time * 5 + i) * 8
+            # Particules de découpe spectaculaires
+            for i in range(15):
+                angle = (i / 15) * 2 * math.pi + current_time * 3
+                radius = 60 + math.sin(current_time * 6 + i) * 10
                 px = board_x + math.cos(angle) * radius
                 py = board_y + math.sin(angle) * radius
-                particle_size = 4 + int(math.sin(current_time * 10 + i) * 2)
+                particle_size = 5 + int(math.sin(current_time * 12 + i) * 3)
                 pygame.draw.circle(self.screen, glow_color, (int(px), int(py)), particle_size)
-                pygame.draw.circle(self.screen, (255, 255, 255), (int(px), int(py)), particle_size, 1)
+                pygame.draw.circle(self.screen, (255, 255, 255), (int(px), int(py)), particle_size, 2)
             
-            # Couteau bien visible
-            shake = math.sin(current_time * 25) * 1.5
+            # Couteau animé
+            shake = math.sin(current_time * 30) * 2
             base_x += shake
             base_y += shake * 0.5
             
             if hasattr(self, 'cutting_position'):
                 knife_x, knife_y = self.cutting_position
-                knife_movement = math.sin(current_time * 12) * 15
+                knife_movement = math.sin(current_time * 15) * 20
                 
                 # Lame brillante
                 pygame.draw.line(self.screen, (240, 240, 240), 
-                                 (knife_x - 6, knife_y - 28 + knife_movement), 
-                                 (knife_x + 6, knife_y + 15 + knife_movement), 8)
+                                 (knife_x - 8, knife_y - 35 + knife_movement), 
+                                 (knife_x + 8, knife_y + 20 + knife_movement), 10)
                 pygame.draw.line(self.screen, (255, 255, 255), 
-                                 (knife_x - 4, knife_y - 28 + knife_movement), 
-                                 (knife_x + 4, knife_y + 15 + knife_movement), 4)
+                                 (knife_x - 5, knife_y - 35 + knife_movement), 
+                                 (knife_x + 5, knife_y + 20 + knife_movement), 5)
                 
                 # Manche
                 pygame.draw.circle(self.screen, (160, 120, 80), 
-                                   (knife_x, knife_y + 20 + knife_movement), 12)
+                                   (knife_x, knife_y + 25 + knife_movement), 14)
                 pygame.draw.circle(self.screen, (100, 80, 50), 
-                                   (knife_x, knife_y + 20 + knife_movement), 12, 2)
+                                   (knife_x, knife_y + 25 + knife_movement), 14, 3)
         
-        elif bot.state == "plating" and hasattr(bot, 'plating') and bot.plating:
-            mix_movement = math.sin(current_time * 10) * 3
+        elif bot.state == "plating" and bot.plating:
+            mix_movement = math.sin(current_time * 12) * 4
             base_x += mix_movement
             
             if hasattr(self, 'plating_position'):
                 spatula_x, spatula_y = self.plating_position
-                spatula_angle = math.sin(current_time * 8) * 0.5
+                spatula_angle = math.sin(current_time * 10) * 0.6
                 
                 pygame.draw.line(self.screen, (180, 180, 180),
-                                 (spatula_x, spatula_y - 20),
-                                 (spatula_x + math.cos(spatula_angle) * 15, 
-                                  spatula_y + math.sin(spatula_angle) * 15), 3)
+                                 (spatula_x, spatula_y - 25),
+                                 (spatula_x + math.cos(spatula_angle) * 20, 
+                                  spatula_y + math.sin(spatula_angle) * 20), 4)
         
         elif bot.state in ["going_to_fridge", "going_to_board", "going_to_plating", "going_to_delivery"]:
             walk_cycle = math.sin(bot.animation_time * 8) * 3
@@ -527,124 +540,135 @@ class KitchenRenderer:
         bot.draw_chef(self.screen)
         bot.x, bot.y = original_x, original_y
         
-        # 🎯 Ingrédients portés - Bien visibles 🎯
+        # 🎯 INGRÉDIENTS PORTÉS - ULTRA VISIBLES 🎯
         if bot.inv and bot.inv != "plated_dish":
             ing_config = self.ingredient_config.get(bot.inv, {"color": (150, 150, 150)})
-            carry_x = base_x + 18
-            carry_y = base_y - 28
-            float_offset = math.sin(current_time * 5) * 2
+            carry_x = base_x + 20
+            carry_y = base_y - 30
+            float_offset = math.sin(current_time * 6) * 3
             
-            # Glow avec pulsation
-            glow_pulse = int(70 + 30 * math.sin(current_time * 4))
-            glow_surf = pygame.Surface((50, 50), pygame.SRCALPHA)
+            # Glow puissant
+            glow_pulse = int(100 + 40 * math.sin(current_time * 5))
+            glow_surf = pygame.Surface((70, 70), pygame.SRCALPHA)
             glow_color = ing_config["color"]
             pygame.draw.circle(glow_surf, (glow_color[0], glow_color[1], glow_color[2], glow_pulse), 
-                               (25, 25), 23)
-            self.screen.blit(glow_surf, (carry_x - 25, carry_y - 25 + float_offset))
+                               (35, 35), 32)
+            self.screen.blit(glow_surf, (carry_x - 35, carry_y - 35 + float_offset))
             
-            # 🌟 Ingrédient bien visible (36x36 pixels) 🌟
+            # 🌟 INGRÉDIENT GÉANT (45x45 pixels) 🌟
             try:
                 if asset_manager:
                     img = asset_manager.get_ingredient_image(bot.inv)
                     if img:
-                        scaled_img = pygame.transform.scale(img, (36, 36))
-                        self.screen.blit(scaled_img, (carry_x - 18, carry_y - 18 + float_offset))
+                        scaled_img = pygame.transform.scale(img, (45, 45))
+                        self.screen.blit(scaled_img, (carry_x - 22, carry_y - 22 + float_offset))
                     else:
                         pygame.draw.circle(self.screen, ing_config["color"], 
-                                           (carry_x, int(carry_y + float_offset)), 16)
+                                           (carry_x, int(carry_y + float_offset)), 20)
                         pygame.draw.circle(self.screen, (255, 255, 255), 
-                                           (carry_x, int(carry_y + float_offset)), 16, 3)
+                                           (carry_x, int(carry_y + float_offset)), 20, 4)
                 else:
                     pygame.draw.circle(self.screen, ing_config["color"], 
-                                       (carry_x, int(carry_y + float_offset)), 16)
+                                       (carry_x, int(carry_y + float_offset)), 20)
                     pygame.draw.circle(self.screen, (255, 255, 255), 
-                                       (carry_x, int(carry_y + float_offset)), 16, 3)
+                                       (carry_x, int(carry_y + float_offset)), 20, 4)
             except:
                 pygame.draw.circle(self.screen, ing_config["color"], 
-                                   (carry_x, int(carry_y + float_offset)), 16)
+                                   (carry_x, int(carry_y + float_offset)), 20)
                 pygame.draw.circle(self.screen, (255, 255, 255), 
-                                   (carry_x, int(carry_y + float_offset)), 16, 3)
+                                   (carry_x, int(carry_y + float_offset)), 20, 4)
         
-        # 🍽️ Plat dressé - Spectaculaire mais équilibré 🍽️
+        # 🍽️ PLAT DRESSÉ - SPECTACULAIRE 🍽️
         elif bot.inv == "plated_dish":
-            import game_state
+            carry_x = base_x + 32
+            carry_y = base_y - 50
+            float_offset = math.sin(current_time * 4) * 3
             
-            carry_x = base_x + 28
-            carry_y = base_y - 45
-            float_offset = math.sin(current_time * 3) * 2
+            # 🔥 RÉCUPÉRER LES VRAIS INGRÉDIENTS DE SA COMMANDE
+            my_order = bot.get_my_order()
+            ingredients_list = []
+            if my_order:
+                ingredients_list = my_order.get('prepared_ingredients', [])
             
-            # Glow doré brillant avec animation
-            glow = math.sin(current_time * 5) * 25 + 50
-            glow_surf = pygame.Surface((100, 100), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf, (255, 255, 150, int(glow)), (50, 50), 48)
-            self.screen.blit(glow_surf, (carry_x - 50, int(carry_y + float_offset) - 50))
+            # Glow doré spectaculaire
+            glow = math.sin(current_time * 6) * 35 + 70
+            glow_surf = pygame.Surface((130, 130), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (255, 255, 150, int(glow)), (65, 65), 60)
+            self.screen.blit(glow_surf, (carry_x - 65, int(carry_y + float_offset) - 65))
             
-            # 🌟 Assiette bien visible (rayon 36 pixels) 🌟
+            # 🌟 ASSIETTE GÉANTE (rayon 42 pixels) 🌟
             pygame.draw.circle(self.screen, (180, 180, 180), 
-                               (carry_x + 2, int(carry_y + float_offset) + 2), 36)
+                               (carry_x + 3, int(carry_y + float_offset) + 3), 42)
             pygame.draw.circle(self.screen, (255, 255, 255), 
-                               (carry_x, int(carry_y + float_offset)), 36)
+                               (carry_x, int(carry_y + float_offset)), 42)
             pygame.draw.circle(self.screen, (245, 245, 230), 
-                               (carry_x, int(carry_y + float_offset)), 32)
+                               (carry_x, int(carry_y + float_offset)), 38)
             pygame.draw.circle(self.screen, (200, 200, 180), 
-                               (carry_x, int(carry_y + float_offset)), 36, 3)
+                               (carry_x, int(carry_y + float_offset)), 42, 4)
             
-            # Brillance sur l'assiette
+            # Brillance
             pygame.draw.circle(self.screen, (255, 255, 255), 
-                               (carry_x - 10, int(carry_y + float_offset) - 10), 8)
+                               (carry_x - 12, int(carry_y + float_offset) - 12), 10)
             
-            # 🍔 Ingrédients sur l'assiette 🍔
-            if hasattr(game_state, 'prepared_ingredients') and game_state.prepared_ingredients:
-                for idx, ingredient in enumerate(game_state.prepared_ingredients):
-                    angle = (idx * 2 * math.pi) / max(1, len(game_state.prepared_ingredients))
-                    radius = 20
-                    rotation = current_time * 0.5
+            # 🍔 INGRÉDIENTS SUR L'ASSIETTE - BIEN VISIBLES 🍔
+            if ingredients_list:
+                for idx, ingredient in enumerate(ingredients_list):
+                    angle = (idx * 2 * math.pi) / max(1, len(ingredients_list))
+                    radius = 24
+                    rotation = current_time * 0.6
                     ing_x = carry_x + math.cos(angle + rotation) * radius
                     ing_y = carry_y + float_offset + math.sin(angle + rotation) * radius
                     
                     ing_config = self.ingredient_config.get(ingredient, {"color": (150, 150, 150)})
                     
-                    # Glow lumineux
-                    glow_surf = pygame.Surface((50, 50), pygame.SRCALPHA)
+                    # Glow
+                    glow_surf = pygame.Surface((60, 60), pygame.SRCALPHA)
                     glow_color = ing_config["color"]
-                    pygame.draw.circle(glow_surf, (glow_color[0], glow_color[1], glow_color[2], 100), 
-                                       (25, 25), 23)
-                    self.screen.blit(glow_surf, (ing_x - 25, ing_y - 25))
+                    pygame.draw.circle(glow_surf, (glow_color[0], glow_color[1], glow_color[2], 120), 
+                                       (30, 30), 28)
+                    self.screen.blit(glow_surf, (ing_x - 30, ing_y - 30))
                     
-                    # 🌟 Ingrédient (32x32) 🌟
+                    # 🌟 INGRÉDIENT (38x38) 🌟
                     try:
                         if asset_manager:
                             img = asset_manager.get_ingredient_image(ingredient)
                             if img:
-                                scaled_img = pygame.transform.scale(img, (32, 32))
-                                self.screen.blit(scaled_img, (ing_x - 16, ing_y - 16))
+                                scaled_img = pygame.transform.scale(img, (38, 38))
+                                self.screen.blit(scaled_img, (ing_x - 19, ing_y - 19))
                             else:
                                 pygame.draw.circle(self.screen, ing_config["color"], 
-                                                   (int(ing_x), int(ing_y)), 14)
+                                                   (int(ing_x), int(ing_y)), 17)
                                 pygame.draw.circle(self.screen, (255, 255, 255), 
-                                                   (int(ing_x), int(ing_y)), 14, 2)
+                                                   (int(ing_x), int(ing_y)), 17, 3)
                         else:
                             pygame.draw.circle(self.screen, ing_config["color"], 
-                                               (int(ing_x), int(ing_y)), 14)
+                                               (int(ing_x), int(ing_y)), 17)
                             pygame.draw.circle(self.screen, (255, 255, 255), 
-                                               (int(ing_x), int(ing_y)), 14, 2)
+                                               (int(ing_x), int(ing_y)), 17, 3)
                     except:
                         pygame.draw.circle(self.screen, ing_config["color"], 
-                                           (int(ing_x), int(ing_y)), 14)
+                                           (int(ing_x), int(ing_y)), 17)
                         pygame.draw.circle(self.screen, (255, 255, 255), 
-                                           (int(ing_x), int(ing_y)), 14, 2)
+                                           (int(ing_x), int(ing_y)), 17, 3)
+            else:
+                # Si pas d'ingrédients (ne devrait pas arriver), afficher un symbole
+                pygame.draw.circle(self.screen, (255, 100, 100), 
+                                   (carry_x, int(carry_y + float_offset)), 12)
+                pygame.draw.line(self.screen, (255, 255, 255),
+                                 (carry_x - 8, int(carry_y + float_offset)),
+                                 (carry_x + 8, int(carry_y + float_offset)), 3)
         
         state_color = bot.get_state_color()
-        pygame.draw.circle(self.screen, state_color, (int(base_x), int(base_y - 55)), 6)
-        pygame.draw.circle(self.screen, (255, 255, 255), (int(base_x), int(base_y - 55)), 6, 1)
+        pygame.draw.circle(self.screen, state_color, (int(base_x), int(base_y - 60)), 7)
+        pygame.draw.circle(self.screen, (255, 255, 255), (int(base_x), int(base_y - 60)), 7, 2)
         
         chef_info = f"{bot.chef_name}: {bot.get_state_text()}"
         info_text = self.font_small.render(chef_info, True, (60, 60, 60))
-        info_rect = info_text.get_rect(center=(int(base_x), int(base_y - 70)))
+        info_rect = info_text.get_rect(center=(int(base_x), int(base_y - 75)))
         
-        text_bg = pygame.Surface((info_rect.width + 8, info_rect.height + 4), pygame.SRCALPHA)
-        text_bg.fill((255, 255, 255, 200))
-        self.screen.blit(text_bg, (info_rect.x - 4, info_rect.y - 2))
+        text_bg = pygame.Surface((info_rect.width + 10, info_rect.height + 6), pygame.SRCALPHA)
+        text_bg.fill((255, 255, 255, 220))
+        self.screen.blit(text_bg, (info_rect.x - 5, info_rect.y - 3))
         self.screen.blit(info_text, info_rect)
 
     def get_interaction_zones(self):
@@ -683,12 +707,15 @@ class KitchenRenderer:
             f"📍 Position: ({int(bot.x)}, {int(bot.y)}) | Cible: ({int(bot.target_x)}, {int(bot.target_y)})",
         ]
         
-        if game_state.current_order_name:
-            order_info = f"🍽️ Commande: {game_state.current_order_name}"
-            if game_state.prepared_ingredients:
-                order_info += f" | Préparés: {', '.join(game_state.prepared_ingredients)}"
-            if hasattr(game_state, 'plated_dish') and game_state.plated_dish:
-                order_info += f" | Plat dressé: {game_state.plated_dish}"
+        my_order = bot.get_my_order()
+        if my_order:
+            order_name = my_order['order_data']['name']
+            order_info = f"🍽️ Commande: {order_name}"
+            prepared = my_order.get('prepared_ingredients', [])
+            if prepared:
+                order_info += f" | Préparés: {', '.join(prepared)}"
+            if my_order.get('is_plated', False):
+                order_info += f" | ✅ PLAT DRESSÉ!"
             info_lines.append(order_info)
         
         if bot.inv:

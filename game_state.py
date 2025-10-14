@@ -1,5 +1,5 @@
 """
-État global du jeu Mini Overcooked
+État global du jeu Mini Overcooked - AVEC MAPPING
 """
 import time
 from config import fridge, recipes, delivery_counter
@@ -12,9 +12,9 @@ user_input = ""
 
 # État des commandes
 current_order_name = None
-current_order = []  # Ingrédients restants pour la commande actuelle
-prepared_ingredients = []  # Ingrédients déjà préparés pour cette commande
-delivered_plates = []  # Liste des assiettes livrées
+current_order = []
+prepared_ingredients = []
+delivered_plates = []
 
 # Ingrédients dans le frigo
 ingredients = []
@@ -22,19 +22,52 @@ ingredients = []
 # Particules pour effets visuels
 particles = []
 
+# Managers multi-agents
+order_manager = None
+bot_manager = None
+
+# 🔥 MAPPING des lettres vers noms complets
+INGREDIENT_MAPPING = {
+    "T": "tomate",
+    "L": "laitue", 
+    "B": "pain",
+    "C": "fromage",
+    "H": "steak",
+    "O": "oignon"
+}
+
+INGREDIENT_REVERSE = {v: k for k, v in INGREDIENT_MAPPING.items()}
+
+def get_ingredient_full_name(short_name):
+    """Convertit T -> tomate, L -> laitue, etc."""
+    return INGREDIENT_MAPPING.get(short_name, short_name)
+
+def get_ingredient_short_name(full_name):
+    """Convertit tomate -> T, laitue -> L, etc."""
+    return INGREDIENT_REVERSE.get(full_name, full_name)
+
 def initialize_ingredients():
     """Initialise les ingrédients dans le frigo"""
     global ingredients
     ingredients = []
-    for t in ["T", "L", "B", "C", "H"]:
-        for i in range(4):  # Plus d'ingrédients
+    
+    current_time = time.time()
+    
+    for short_type in ["T", "L", "B", "C", "H"]:
+        full_type = get_ingredient_full_name(short_type)  # T -> tomate
+        
+        for i in range(4):
             ingredients.append({
-                "x": fridge["x"] + 10 + (i % 2) * 30, 
-                "y": fridge["y"] + 10 + ((i + ord(t)) % 6) * 18, 
-                "type": t,
+                "x": fridge["x"] + 10 + (i % 2) * 30,
+                "y": fridge["y"] + 10 + ((i + ord(short_type)) % 6) * 18,
+                "type": full_type,  # ✅ Stocker "tomate" au lieu de "T"
+                "short_type": short_type,  # Garder "T" pour compatibilité
                 "taken": False,
-                "spawn_time": time.time()
+                "spawn_time": current_time
             })
+    
+    print(f"✓ {len(ingredients)} ingrédients initialisés")
+    print(f"✓ Exemples: {[ing['type'] for ing in ingredients[:5]]}")
 
 def reset_order():
     """Réinitialise la commande actuelle"""
@@ -64,8 +97,7 @@ def complete_order():
             total_points = base_points + combo_bonus
             score += total_points
             combo += 1
-
-            # Ajouter l'assiette livrée
+            
             delivered_plates.append({
                 "name": current_order_name,
                 "points": total_points,
@@ -74,7 +106,6 @@ def complete_order():
                 "time": time.time(),
                 "ingredients": prepared_ingredients.copy()
             })
-
             reset_order()
             return total_points
         else:
@@ -97,3 +128,38 @@ def initialize_game():
     initialize_ingredients()
     delivered_plates.clear()
     particles.clear()
+
+def get_available_ingredient(ingredient_type):
+    """Récupère un ingrédient disponible d'un type donné"""
+    current_time = time.time()
+    
+    for ing in ingredients:
+        if (ing["type"] == ingredient_type and 
+            not ing["taken"] and 
+            current_time >= ing.get("spawn_time", 0)):
+            ing["taken"] = True
+            return ing
+    
+    return None
+
+def return_ingredient(ingredient_type):
+    """Remet un ingrédient dans le stock"""
+    for ing in ingredients:
+        if ing["type"] == ingredient_type and ing["taken"]:
+            ing["taken"] = False
+            return True
+    return False
+
+def respawn_ingredient(ingredient_type, delay=3.0):
+    """Fait réapparaître un ingrédient après un délai"""
+    spawn_time = time.time() + delay
+    
+    ingredients.append({
+        "type": ingredient_type,
+        "taken": False,
+        "spawn_time": spawn_time,
+        "x": 0,
+        "y": 0
+    })
+    
+    print(f"✓ {ingredient_type} va réapparaître dans {delay}s")
