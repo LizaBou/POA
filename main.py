@@ -47,7 +47,7 @@ def main():
         # Initialiser le renderer
         try:
             kitchen_renderer = KitchenRenderer(screen)
-            game_state.kitchen_renderer = kitchen_renderer  # ⭐ STOCKER DANS GAME_STATE
+            game_state.kitchen_renderer = kitchen_renderer
             print("✓ Renderer de cuisine initialisé")
         except Exception as e:
             print(f"❌ Erreur renderer: {e}")
@@ -196,7 +196,7 @@ def main():
                             bot.inv = None
                             bot.preparing = None
                             bot.plating = False
-                        print("🔧 DEBUG: Système complètement réinialisé")
+                        print("🔧 DEBUG: Système complètement réinitialisé")
                     
                     elif event.key == pygame.K_F3:
                         # Afficher les zones
@@ -331,90 +331,34 @@ def main():
                 for bot in bot_manager.bots:
                     bot.draw_chef(screen)
             
-            # Rendu de l'UI
+            # Rendu de l'UI (simplifié - juste timer et score)
             try:
-                if ui_renderer:
-                    primary_bot = bot_manager.bots[0] if bot_manager.bots else None
-                    ui_renderer.render_full_ui(
-                        game_state.score,
-                        game_state.timer,
-                        getattr(game_state, 'combo', 0),
-                        primary_bot,
-                        game_state.user_input,
-                        None,
-                        [],
-                        asset_manager
-                    )
-                    
-                    # ⭐ Afficher le système de compétition à l'écran
-                    font = pygame.font.Font(None, 20)
-                    y_offset = 50
-                    
-                    # Classement
-                    leaderboard = bot_manager.get_leaderboard()
-                    for i, entry in enumerate(leaderboard):
-                        color = (255, 215, 0) if i == 0 else (200, 200, 200)
-                        medal = "🥇" if i == 0 else "🥈"
-                        text = f"{medal} {entry['name']}: {entry['score']}"
-                        score_surf = font.render(text, True, color)
-                        screen.blit(score_surf, (config.WIDTH - 220, y_offset + i * 25))
-                    
-                    # Système de commandes
-                    y_offset = 150
-                    status = order_manager.get_status_summary()
-                    
-                    queue_title = font.render("📋 SYSTÈME:", True, (255, 255, 255))
-                    screen.blit(queue_title, (config.WIDTH - 220, y_offset))
-                    y_offset += 25
-                    
-                    stats_text = f"Dispo: {status['available_orders']} | Actives: {status['active_orders']}"
-                    stats_surf = font.render(stats_text, True, (200, 200, 200))
-                    screen.blit(stats_surf, (config.WIDTH - 220, y_offset))
-                    y_offset += 25
-                    
-                    completed_text = f"Complétées: {status['completed_orders']}"
-                    completed_surf = font.render(completed_text, True, (150, 255, 150))
-                    screen.blit(completed_surf, (config.WIDTH - 220, y_offset))
-                    y_offset += 30
-                    
-                    # Commandes actives
-                    if status['chefs_working']:
-                        active_title = font.render("⚙️ EN COURS:", True, (255, 255, 100))
-                        screen.blit(active_title, (config.WIDTH - 220, y_offset))
-                        y_offset += 20
-                        
-                        for chef_info in status['chefs_working']:
-                            chef_text = f"• {chef_info['chef'][:8]}:"
-                            chef_surf = font.render(chef_text, True, (200, 200, 200))
-                            screen.blit(chef_surf, (config.WIDTH - 215, y_offset))
-                            y_offset += 18
-                            
-                            order_text = f"  {chef_info['order']} {chef_info['progress']}"
-                            order_surf = font.render(order_text, True, (150, 255, 150))
-                            screen.blit(order_surf, (config.WIDTH - 210, y_offset))
-                            y_offset += 22
-                    
-                    y_offset += 10
-                    
-                    # File d'attente
-                    if order_manager.available_orders:
-                        queue_title2 = font.render("⏳ FILE:", True, (255, 200, 100))
-                        screen.blit(queue_title2, (config.WIDTH - 220, y_offset))
-                        y_offset += 20
-                        
-                        for i, order in enumerate(order_manager.available_orders[:3], 1):
-                            order_text = f"{i}. {order['name']}"
-                            order_surf = font.render(order_text, True, (200, 200, 150))
-                            screen.blit(order_surf, (config.WIDTH - 210, y_offset))
-                            y_offset += 18
-                        
-                        if len(order_manager.available_orders) > 3:
-                            more_text = f"... +{len(order_manager.available_orders) - 3}"
-                            more_surf = font.render(more_text, True, (150, 150, 150))
-                            screen.blit(more_surf, (config.WIDTH - 210, y_offset))
-                    
-                else:
-                    draw_basic_ui(screen, game_state.score, game_state.timer)
+                font_small = pygame.font.Font(None, 24)
+                timer_text = font_small.render(f"⏱️ {game_state.timer:.1f}s", True, (255, 255, 255))
+                screen.blit(timer_text, (config.WIDTH - 100, 10))
+                
+                score_text = font_small.render(f"💰 {game_state.score}", True, (255, 215, 0))
+                screen.blit(score_text, (config.WIDTH - 100, 35))
+                
+                # 📝 ZONE DE SAISIE EN HAUT
+                input_font = pygame.font.Font(None, 28)
+                
+                # Fond de la zone de saisie
+                input_bg_rect = pygame.Rect(10, 10, 450, 45)
+                input_bg_surf = pygame.Surface((450, 45), pygame.SRCALPHA)
+                input_bg_surf.fill((0, 0, 0, 200))
+                screen.blit(input_bg_surf, input_bg_rect)
+                pygame.draw.rect(screen, (255, 215, 0), input_bg_rect, 3)
+                
+                # Label "Tapez une recette:"
+                label_text = input_font.render("Tapez une recette:", True, (255, 255, 255))
+                screen.blit(label_text, (18, 16))
+                
+                # Input avec curseur clignotant
+                user_input_display = game_state.user_input + ("_" if int(time.time() * 2) % 2 == 0 else " ")
+                input_text = input_font.render(user_input_display, True, (255, 255, 100))
+                screen.blit(input_text, (18, 35))
+                
             except Exception as e:
                 print(f"⚠ Erreur rendu UI: {e}")
                 draw_basic_ui(screen, game_state.score, game_state.timer)
