@@ -1,4 +1,4 @@
-# kitchen.py - VERSION FINALE AVEC LIVRAISON + INGRÉDIENTS VISIBLES
+# kitchen.py - VERSION AVEC ANIMATION DE DÉCOUPE RÉALISTE
 
 import pygame
 import time
@@ -20,16 +20,17 @@ class KitchenRenderer:
         self.font_medium = pygame.font.Font(None, 28)
         self.font_small = pygame.font.Font(None, 20)
         self.ingredient_config = {
-            "laitue": {"color": (50, 200, 50), "icon": "🥬"},
-            "tomate": {"color": (220, 50, 50), "icon": "🍅"},
-            "pain": {"color": (200, 150, 80), "icon": "🍞"},
-            "steak": {"color": (140, 80, 50), "icon": "🥩"},
-            "fromage": {"color": (255, 220, 80), "icon": "🧀"},
-            "oignon": {"color": (200, 180, 140), "icon": "🧅"},
-            "salade": {"color": (80, 180, 80), "icon": "🥗"}
+            "laitue": {"color": (60, 220, 60), "icon": "🥬"},
+            "tomate": {"color": (240, 60, 60), "icon": "🍅"},
+            "pain": {"color": (220, 170, 90), "icon": "🍞"},
+            "steak": {"color": (160, 90, 60), "icon": "🥩"},
+            "fromage": {"color": (255, 230, 90), "icon": "🧀"},
+            "oignon": {"color": (210, 190, 150), "icon": "🧅"},
+            "salade": {"color": (90, 200, 90), "icon": "🥗"}
         }
         self.setup_kitchen_layout()
-        self.delivered_dishes = []  # Liste des plats livrés avec animation
+        self.delivered_dishes = []
+        self.cutting_animation = CuttingAnimation(screen)
 
     def setup_kitchen_layout(self):
         self.storage_area = {'x': 40, 'y': 110, 'w': 280, 'h': 320}
@@ -39,23 +40,23 @@ class KitchenRenderer:
 
     def draw_floor(self):
         tile_size = 50
-        brown_light = (181, 101, 29)
-        brown_dark = (130, 71, 22)
+        floor_light = (210, 210, 210)
+        floor_dark = (190, 190, 190)
         for x in range(0, WIDTH, tile_size):
             for y in range(0, HEIGHT, tile_size):
-                color = brown_light if (x // tile_size + y // tile_size) % 2 == 0 else brown_dark
+                color = floor_light if (x // tile_size + y // tile_size) % 2 == 0 else floor_dark
                 pygame.draw.rect(self.screen, color, (x, y, tile_size, tile_size))
-                pygame.draw.line(self.screen, (160, 90, 25), (x, y), (x + tile_size, y), 1)
-                pygame.draw.line(self.screen, (160, 90, 25), (x, y), (x, y + tile_size), 1)
+                pygame.draw.line(self.screen, (200, 200, 200), (x, y), (x + tile_size, y), 1)
+                pygame.draw.line(self.screen, (200, 200, 200), (x, y), (x, y + tile_size), 1)
 
     def draw_individual_ingredient_stations(self, asset_manager):
         import game_state
         current_time = time.time()
         
-        title_bg = pygame.Rect(self.storage_area['x'], self.storage_area['y'] - 35, self.storage_area['w'], 30)
-        draw_gradient_rect(self.screen, (110, 70, 30), (90, 60, 20), title_bg)
-        title = self.font_medium.render("STOCKAGE DES INGRÉDIENTS", True, (255, 255, 255))
-        self.screen.blit(title, (self.storage_area['x'] + 15, self.storage_area['y'] - 28))
+        title_bg = pygame.Rect(self.storage_area['x'], self.storage_area['y'] - 30, self.storage_area['w'], 25)
+        draw_gradient_rect(self.screen, (100, 100, 100), (80, 80, 80), title_bg)
+        title = self.font_small.render("STOCKAGE DES INGRÉDIENTS", True, (255, 255, 255))
+        self.screen.blit(title, (self.storage_area['x'] + 10, self.storage_area['y'] - 25))
         
         ingredient_types = list(set(ing["type"] for ing in game_state.ingredients))
         if not ingredient_types:
@@ -81,26 +82,26 @@ class KitchenRenderer:
             is_available = len(available_ingredients) > 0
 
             if is_available:
-                draw_gradient_rect(self.screen, (240, 220, 180), (210, 180, 140), station_rect)
-                border_color = (130, 90, 40)
-                status_color = (170, 130, 70)
-                glow = int(20 + 15 * math.sin(current_time * 3))
+                draw_gradient_rect(self.screen, (250, 245, 235), (240, 230, 220), station_rect)
+                border_color = (100, 150, 100)
+                status_color = (100, 180, 100)
+                glow = int(25 + 15 * math.sin(current_time * 3))
             else:
-                draw_gradient_rect(self.screen, (225, 210, 200), (195, 180, 170), station_rect)
-                border_color = (140, 120, 110)
-                status_color = (160, 140, 130)
+                draw_gradient_rect(self.screen, (235, 235, 235), (220, 220, 220), station_rect)
+                border_color = (150, 150, 150)
+                status_color = (170, 170, 170)
                 glow = 0
 
             pygame.draw.rect(self.screen, border_color, station_rect, 2)
 
             if glow > 0:
                 glow_surf = pygame.Surface((station_width + 10, station_height + 10), pygame.SRCALPHA)
-                pygame.draw.rect(glow_surf, (180, 140, 70, glow), (0, 0, station_width + 10, station_height + 10), 3)
+                pygame.draw.rect(glow_surf, (100, 180, 100, glow), (0, 0, station_width + 10, station_height + 10), 3)
                 self.screen.blit(glow_surf, (station_x - 5, station_y - 5))
 
             storage_inner = pygame.Rect(station_x + 7, station_y + 25, 72, 34)
             pygame.draw.rect(self.screen, self.ingredient_config[ingredient_type]["color"], storage_inner)
-            pygame.draw.rect(self.screen, (100, 70, 30), storage_inner, 1)
+            pygame.draw.rect(self.screen, (80, 60, 40), storage_inner, 2)
 
             if is_available and asset_manager:
                 for j, ing in enumerate(available_ingredients[:4]):
@@ -117,12 +118,12 @@ class KitchenRenderer:
                     else:
                         color = self.ingredient_config[ingredient_type]["color"]
                         pygame.draw.circle(self.screen, color, (ing_x, int(float_y)), 8)
-                        pygame.draw.circle(self.screen, (255, 255, 255), (ing_x, int(float_y)), 8, 1)
+                        pygame.draw.circle(self.screen, (255, 255, 255), (ing_x, int(float_y)), 8, 2)
 
             label_overlay = pygame.Surface((station_width, 20), pygame.SRCALPHA)
-            label_overlay.fill((255, 255, 255, 160))
+            label_overlay.fill((80, 80, 80, 200))
             self.screen.blit(label_overlay, (station_x, station_y))
-            label_text = self.font_small.render(ingredient_type.capitalize(), True, (50, 40, 20))
+            label_text = self.font_small.render(ingredient_type.capitalize(), True, (255, 255, 255))
             self.screen.blit(label_text, (station_x + 10, station_y + 5))
 
             led_x = station_x + station_width - 12
@@ -130,14 +131,14 @@ class KitchenRenderer:
             
             if is_available:
                 halo_surf = pygame.Surface((16, 16), pygame.SRCALPHA)
-                pygame.draw.circle(halo_surf, (status_color[0], status_color[1], status_color[2], 40), (8, 8), 7)
+                pygame.draw.circle(halo_surf, (status_color[0], status_color[1], status_color[2], 60), (8, 8), 7)
                 self.screen.blit(halo_surf, (led_x - 8, led_y - 8))
             pygame.draw.circle(self.screen, status_color, (led_x, led_y), 4)
             pygame.draw.circle(self.screen, (255, 255, 255), (led_x, led_y), 4, 1)
             
             if is_available:
                 qty = len(available_ingredients)
-                badge_color = (110, 70, 30) if qty > 2 else (150, 115, 80)
+                badge_color = (50, 150, 50) if qty > 2 else (100, 180, 100)
                 pygame.draw.circle(self.screen, badge_color, (led_x, led_y + 18), 8)
                 pygame.draw.circle(self.screen, (255, 255, 255), (led_x, led_y + 18), 8, 1)
                 qty_text = self.font_small.render(str(qty), True, (255, 255, 255))
@@ -147,12 +148,12 @@ class KitchenRenderer:
     def draw_work_station(self, asset_manager):
         work_rect = pygame.Rect(self.work_area['x'], self.work_area['y'], 
                               self.work_area['w'], self.work_area['h'])
-        draw_gradient_rect(self.screen, (150, 90, 40), (110, 70, 20), work_rect)
-        pygame.draw.rect(self.screen, (90, 50, 10), work_rect, 3)
+        draw_gradient_rect(self.screen, (160, 110, 70), (140, 90, 60), work_rect)
+        pygame.draw.rect(self.screen, (100, 70, 40), work_rect, 3)
         
         title_bg = pygame.Rect(self.work_area['x'], self.work_area['y'] - 30, 
                               self.work_area['w'], 25)
-        draw_gradient_rect(self.screen, (90, 50, 10), (70, 40, 10), title_bg)
+        draw_gradient_rect(self.screen, (100, 70, 40), (80, 60, 30), title_bg)
         title = self.font_small.render("PLAN DE TRAVAIL", True, (255, 255, 255))
         self.screen.blit(title, (self.work_area['x'] + 10, self.work_area['y'] - 25))
         
@@ -162,12 +163,12 @@ class KitchenRenderer:
         cutting_h = 70
         
         cutting_rect = pygame.Rect(cutting_x, cutting_y, cutting_w, cutting_h)
-        draw_gradient_rect(self.screen, (190, 140, 80), (160, 110, 60), cutting_rect)
-        pygame.draw.rect(self.screen, (110, 70, 30), cutting_rect, 2)
+        draw_gradient_rect(self.screen, (210, 160, 100), (180, 130, 80), cutting_rect)
+        pygame.draw.rect(self.screen, (120, 80, 40), cutting_rect, 2)
         
         for i in range(5):
             line_x = cutting_x + 10 + i * 14
-            pygame.draw.line(self.screen, (140, 90, 40), (line_x, cutting_y + 10), (line_x, cutting_y + 60), 1)
+            pygame.draw.line(self.screen, (160, 110, 60), (line_x, cutting_y + 10), (line_x, cutting_y + 60), 1)
         
         self.draw_prepared_area(asset_manager)
         self.cutting_position = (cutting_x + cutting_w//2, cutting_y + cutting_h//2)
@@ -182,11 +183,11 @@ class KitchenRenderer:
         prepared_h = 70
         
         prepared_rect = pygame.Rect(prepared_x, prepared_y, prepared_w, prepared_h)
-        draw_gradient_rect(self.screen, (250, 245, 230), (220, 215, 190), prepared_rect)
-        pygame.draw.rect(self.screen, (140, 130, 100), prepared_rect, 2)
+        draw_gradient_rect(self.screen, (245, 240, 225), (235, 230, 215), prepared_rect)
+        pygame.draw.rect(self.screen, (180, 160, 120), prepared_rect, 2)
         
         title_overlay = pygame.Surface((prepared_w, 16), pygame.SRCALPHA)
-        title_overlay.fill((130, 100, 70, 180))
+        title_overlay.fill((180, 140, 60, 200))
         self.screen.blit(title_overlay, (prepared_x, prepared_y - 16))
         title = self.font_small.render("PRÉPARÉS", True, (255, 255, 255))
         self.screen.blit(title, (prepared_x + 5, prepared_y - 15))
@@ -202,7 +203,7 @@ class KitchenRenderer:
             float_offset = math.sin(current_time * 4 + idx) * 1.5
             
             ing_config = self.ingredient_config.get(ingredient, {"color": (150, 150, 150)})
-            glow_pulse = int(50 + 25 * math.sin(current_time * 3 + idx))
+            glow_pulse = int(60 + 30 * math.sin(current_time * 3 + idx))
             glow_surf = pygame.Surface((38, 38), pygame.SRCALPHA)
             pygame.draw.circle(glow_surf, (*ing_config["color"], glow_pulse), (19, 19), 17)
             self.screen.blit(glow_surf, (pos_x - 19, pos_y - 19 + float_offset))
@@ -217,8 +218,8 @@ class KitchenRenderer:
                     pygame.draw.circle(self.screen, (255, 255, 255), (pos_x, int(pos_y + float_offset)), 12, 2)
             
             check_x, check_y = pos_x + 10, pos_y - 10
-            pygame.draw.circle(self.screen, (120, 90, 40), (check_x, check_y), 6)
-            pygame.draw.circle(self.screen, (100, 255, 100), (check_x, check_y), 4)
+            pygame.draw.circle(self.screen, (50, 180, 50), (check_x, check_y), 6)
+            pygame.draw.circle(self.screen, (150, 255, 150), (check_x, check_y), 4)
 
     def draw_plating_station(self, asset_manager):
         import game_state
@@ -226,12 +227,12 @@ class KitchenRenderer:
         
         plating_rect = pygame.Rect(self.plating_area['x'], self.plating_area['y'], 
                                   self.plating_area['w'], self.plating_area['h'])
-        draw_gradient_rect(self.screen, (230, 210, 180), (190, 170, 150), plating_rect)
-        pygame.draw.rect(self.screen, (160, 130, 100), plating_rect, 3)
+        draw_gradient_rect(self.screen, (220, 225, 235), (200, 205, 215), plating_rect)
+        pygame.draw.rect(self.screen, (140, 150, 170), plating_rect, 3)
         
         title_bg = pygame.Rect(self.plating_area['x'], self.plating_area['y'] - 30, 
                               self.plating_area['w'], 25)
-        draw_gradient_rect(self.screen, (160, 130, 100), (140, 110, 80), title_bg)
+        draw_gradient_rect(self.screen, (140, 150, 170), (120, 130, 150), title_bg)
         title = self.font_small.render("STATION D'ASSEMBLAGE", True, (255, 255, 255))
         self.screen.blit(title, (self.plating_area['x'] + 10, self.plating_area['y'] - 25))
         
@@ -276,7 +277,7 @@ class KitchenRenderer:
             plate_center_x = assembly_x + assembly_w//2
             plate_center_y = assembly_y + assembly_h//2
             
-            glow = int(30 + 20 * math.sin(current_time * 4))
+            glow = int(40 + 30 * math.sin(current_time * 4))
             glow_surf = pygame.Surface((100, 100), pygame.SRCALPHA)
             pygame.draw.circle(glow_surf, (255, 255, 150, glow), (50, 50), 45)
             self.screen.blit(glow_surf, (plate_center_x - 50, plate_center_y - 50))
@@ -295,7 +296,7 @@ class KitchenRenderer:
                 
                 ing_config = self.ingredient_config.get(ingredient, {"color": (150, 150, 150)})
                 glow_surf = pygame.Surface((50, 50), pygame.SRCALPHA)
-                pygame.draw.circle(glow_surf, (*ing_config["color"], 100), (25, 25), 23)
+                pygame.draw.circle(glow_surf, (*ing_config["color"], 120), (25, 25), 23)
                 self.screen.blit(glow_surf, (ing_x - 25, ing_y - 25))
                 
                 if asset_manager:
@@ -317,86 +318,72 @@ class KitchenRenderer:
         service_rect = pygame.Rect(self.service_area['x'], self.service_area['y'], 
                                    self.service_area['w'], self.service_area['h'])
         
-        glow = int(25 + 15 * math.sin(current_time * 2))
-        for i in range(4, 0, -1):
+        glow = int(20 + 10 * math.sin(current_time * 2))
+        for i in range(3, 0, -1):
             alpha = glow // i
             glow_surf = pygame.Surface((self.service_area['w'] + i*6, self.service_area['h'] + i*6), pygame.SRCALPHA)
             pygame.draw.rect(glow_surf, (255, 215, 0, alpha), (0, 0, self.service_area['w'] + i*6, self.service_area['h'] + i*6))
             self.screen.blit(glow_surf, (self.service_area['x'] - i*3, self.service_area['y'] - i*3))
         
-        draw_gradient_rect(self.screen, (255, 210, 120), (230, 170, 80), service_rect)
-        pygame.draw.rect(self.screen, (200, 150, 50), service_rect, 3)
+        draw_gradient_rect(self.screen, (250, 220, 140), (230, 200, 120), service_rect)
+        pygame.draw.rect(self.screen, (180, 150, 80), service_rect, 3)
         
         title_bg = pygame.Rect(self.service_area['x'], self.service_area['y'] - 30, self.service_area['w'], 25)
-        draw_gradient_rect(self.screen, (200, 150, 50), (180, 130, 30), title_bg)
+        draw_gradient_rect(self.screen, (180, 150, 80), (160, 130, 60), title_bg)
         title = self.font_small.render("SERVICE", True, (255, 255, 255))
         self.screen.blit(title, (self.service_area['x'] + 10, self.service_area['y'] - 25))
         
-        # Dessiner les plats livrés avec animation
         self.draw_delivered_dishes(current_time)
         
-        # Zone de dépôt avec icône
         drop_zone_y = self.service_area['y'] + 100
         drop_zone_rect = pygame.Rect(self.service_area['x'] + 20, drop_zone_y, 80, 80)
         
-        pulse = int(20 + 10 * math.sin(current_time * 3))
+        pulse = int(30 + 15 * math.sin(current_time * 3))
         glow_surf = pygame.Surface((90, 90), pygame.SRCALPHA)
         pygame.draw.rect(glow_surf, (100, 255, 100, pulse), (0, 0, 90, 90), border_radius=10)
         self.screen.blit(glow_surf, (drop_zone_rect.x - 5, drop_zone_rect.y - 5))
         
-        draw_gradient_rect(self.screen, (240, 255, 240), (200, 255, 200), drop_zone_rect)
-        pygame.draw.rect(self.screen, (100, 200, 100), drop_zone_rect, 3, border_radius=8)
+        draw_gradient_rect(self.screen, (200, 255, 200), (150, 240, 150), drop_zone_rect)
+        pygame.draw.rect(self.screen, (80, 200, 80), drop_zone_rect, 3, border_radius=8)
         
-        # Icône de livraison
-        icon_text = self.font_large.render("🚀", True, (50, 150, 50))
+        icon_text = self.font_large.render("🚀", True, (40, 180, 40))
         icon_rect = icon_text.get_rect(center=drop_zone_rect.center)
         self.screen.blit(icon_text, icon_rect)
         
-        # Texte "LIVRER ICI"
-        deliver_text = self.font_small.render("LIVRER ICI", True, (50, 120, 50))
+        deliver_text = self.font_small.render("LIVRER ICI", True, (40, 150, 40))
         text_rect = deliver_text.get_rect(center=(drop_zone_rect.centerx, drop_zone_rect.bottom + 15))
         self.screen.blit(deliver_text, text_rect)
 
     def draw_delivered_dishes(self, current_time):
-        """Affiche les plats livrés avec animation de montée"""
-        # Nettoyer les vieilles animations (après 2 secondes)
         self.delivered_dishes = [d for d in self.delivered_dishes if current_time - d['time'] < 2.0]
         
         for dish in self.delivered_dishes:
-            progress = (current_time - dish['time']) / 2.0  # 0 à 1 sur 2 secondes
+            progress = (current_time - dish['time']) / 2.0
             
-            # Position qui monte
             start_y = self.service_area['y'] + 180
             end_y = self.service_area['y'] + 50
             current_y = start_y - (start_y - end_y) * progress
             
-            # Opacité qui diminue à la fin
             alpha = int(255 * (1 - max(0, (progress - 0.7) / 0.3)))
             
-            # Position X au centre
             pos_x = self.service_area['x'] + self.service_area['w'] // 2
             
-            # Surface semi-transparente
             dish_surf = pygame.Surface((70, 70), pygame.SRCALPHA)
             
-            # Effet de glow
             glow_size = int(80 - 20 * progress)
             glow_surf = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
             pygame.draw.circle(glow_surf, (100, 255, 100, alpha // 2), (glow_size // 2, glow_size // 2), glow_size // 2)
             dish_surf.blit(glow_surf, (35 - glow_size // 2, 35 - glow_size // 2))
             
-            # Dessiner le plat
             if 'burger' in dish['name'].lower():
                 self.draw_mini_burger(dish_surf, 35, 35, alpha)
             else:
                 self.draw_mini_salad(dish_surf, 35, 35, alpha)
             
-            # Checkmark vert
             check_size = int(15 + 5 * math.sin(current_time * 10))
             pygame.draw.circle(dish_surf, (100, 255, 100, alpha), (55, 15), check_size)
             pygame.draw.circle(dish_surf, (50, 200, 50, alpha), (55, 15), check_size, 2)
             
-            # Texte "✓ LIVRÉ"
             check_text = self.font_small.render("✓ LIVRÉ", True, (255, 255, 255, alpha))
             text_bg = pygame.Surface((check_text.get_width() + 10, check_text.get_height() + 4), pygame.SRCALPHA)
             text_bg.fill((50, 200, 50, alpha))
@@ -406,14 +393,13 @@ class KitchenRenderer:
             self.screen.blit(dish_surf, (pos_x - 35, int(current_y) - 35))
     
     def draw_mini_burger(self, surface, x, y, alpha):
-        """Dessine un mini burger"""
         colors = [
-            ((200, 150, 80, alpha), 18),  # Pain du haut
-            ((255, 220, 80, alpha), 16),  # Fromage
-            ((140, 80, 50, alpha), 15),   # Steak
-            ((220, 50, 50, alpha), 14),   # Tomate
-            ((50, 200, 50, alpha), 13),   # Laitue
-            ((200, 150, 80, alpha), 16),  # Pain du bas
+            ((220, 170, 90, alpha), 18),
+            ((255, 230, 90, alpha), 16),
+            ((160, 90, 60, alpha), 15),
+            ((240, 60, 60, alpha), 14),
+            ((60, 220, 60, alpha), 13),
+            ((220, 170, 90, alpha), 16),
         ]
         offset = 0
         for color, radius in colors:
@@ -422,18 +408,13 @@ class KitchenRenderer:
             offset += 3
     
     def draw_mini_salad(self, surface, x, y, alpha):
-        """Dessine une mini salade"""
-        # Bol
         pygame.draw.ellipse(surface, (255, 255, 255, alpha), (x - 20, y + 5, 40, 15))
-        # Salade
-        pygame.draw.circle(surface, (80, 200, 80, alpha), (x, y - 5), 16)
-        pygame.draw.circle(surface, (50, 180, 50, alpha), (x, y - 5), 16, 1)
-        # Tomates
+        pygame.draw.circle(surface, (90, 200, 90, alpha), (x, y - 5), 16)
+        pygame.draw.circle(surface, (60, 180, 60, alpha), (x, y - 5), 16, 1)
         for offset in [(-8, 0), (8, -3), (0, 5)]:
-            pygame.draw.circle(surface, (220, 50, 50, alpha), (x + offset[0], y + offset[1]), 3)
+            pygame.draw.circle(surface, (240, 60, 60, alpha), (x + offset[0], y + offset[1]), 3)
 
     def add_delivered_dish(self, order_name):
-        """Ajoute un plat à la liste des livrés pour animation"""
         self.delivered_dishes.append({
             'name': order_name,
             'time': time.time()
@@ -447,30 +428,11 @@ class KitchenRenderer:
             board_x = self.work_area['x'] + 55
             board_y = self.work_area['y'] + 55
             
-            ing_config = self.ingredient_config.get(bot.preparing, {"color": (150, 150, 150)})
+            if not self.cutting_animation.active:
+                self.cutting_animation.start(bot.preparing, board_x, board_y)
             
-            pygame.draw.circle(self.screen, (255, 255, 255), (board_x, board_y), 45)
-            glow_pulse = int(140 + 60 * math.sin(current_time * 5))
-            glow_surf = pygame.Surface((120, 120), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf, (*ing_config["color"], glow_pulse), (60, 60), 55)
-            self.screen.blit(glow_surf, (board_x - 60, board_y - 60))
-            
-            if asset_manager:
-                img = asset_manager.get_ingredient_image(bot.preparing)
-                if img:
-                    scaled_img = pygame.transform.scale(img, (50, 50))
-                    self.screen.blit(scaled_img, (board_x - 25, board_y - 25))
-                else:
-                    pygame.draw.circle(self.screen, ing_config["color"], (board_x, board_y), 22)
-                    pygame.draw.circle(self.screen, (255, 255, 255), (board_x, board_y), 22, 3)
-            
-            for i in range(12):
-                angle = (i / 12) * 2 * math.pi + current_time * 3
-                radius = 55 + math.sin(current_time * 6 + i) * 8
-                px = board_x + math.cos(angle) * radius
-                py = board_y + math.sin(angle) * radius
-                particle_size = 4 + int(math.sin(current_time * 10 + i) * 2)
-                pygame.draw.circle(self.screen, ing_config["color"], (int(px), int(py)), particle_size)
+            self.cutting_animation.update()
+            self.cutting_animation.draw()
             
             shake = math.sin(current_time * 30) * 2
             base_x += shake
@@ -480,11 +442,9 @@ class KitchenRenderer:
             walk_cycle = math.sin(bot.animation_time * 8) * 3
             base_y -= abs(walk_cycle)
         
-        # Animation spéciale pour la livraison
         elif bot.state == "delivering":
-            # Chef qui fait un mouvement de livraison
             delivery_progress = (current_time - bot.delivery_start_time) if hasattr(bot, 'delivery_start_time') else 0
-            if delivery_progress < 1.0:  # Animation de 1 seconde
+            if delivery_progress < 1.0:
                 bounce = abs(math.sin(delivery_progress * math.pi * 4)) * 10
                 base_y -= bounce
         
@@ -499,7 +459,7 @@ class KitchenRenderer:
             carry_y = base_y - 30
             float_offset = math.sin(current_time * 6) * 3
             
-            glow_pulse = int(90 + 40 * math.sin(current_time * 5))
+            glow_pulse = int(100 + 50 * math.sin(current_time * 5))
             glow_surf = pygame.Surface((60, 60), pygame.SRCALPHA)
             pygame.draw.circle(glow_surf, (*ing_config["color"], glow_pulse), (30, 30), 28)
             self.screen.blit(glow_surf, (carry_x - 30, carry_y - 30 + float_offset))
@@ -518,10 +478,9 @@ class KitchenRenderer:
             carry_y = base_y - 45
             float_offset = math.sin(current_time * 4) * 3
             
-            # Effet de glow doré pour le plat fini
-            glow_size = int(70 + 10 * math.sin(current_time * 3))
+            glow_size = int(80 + 15 * math.sin(current_time * 3))
             glow_surf = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf, (255, 215, 0, 80), (glow_size // 2, glow_size // 2), glow_size // 2)
+            pygame.draw.circle(glow_surf, (255, 215, 0, 100), (glow_size // 2, glow_size // 2), glow_size // 2)
             self.screen.blit(glow_surf, (carry_x - glow_size // 2, carry_y - glow_size // 2 + float_offset))
             
             my_order = bot.get_my_order()
@@ -553,26 +512,26 @@ class KitchenRenderer:
         pygame.draw.circle(self.screen, (255, 255, 255), (int(base_x), int(base_y - 60)), 7, 2)
         
         chef_info = f"{bot.chef_name}: {bot.get_state_text()}"
-        info_text = self.font_small.render(chef_info, True, (60, 60, 60))
+        info_text = self.font_small.render(chef_info, True, (40, 40, 40))
         info_rect = info_text.get_rect(center=(int(base_x), int(base_y - 75)))
         text_bg = pygame.Surface((info_rect.width + 10, info_rect.height + 6), pygame.SRCALPHA)
-        text_bg.fill((255, 255, 255, 220))
+        text_bg.fill((255, 255, 255, 230))
         self.screen.blit(text_bg, (info_rect.x - 5, info_rect.y - 3))
         self.screen.blit(info_text, info_rect)
     
     def draw_fallback_burger(self, x, y):
-        pygame.draw.circle(self.screen, (200, 150, 80), (x, y + 10), 25)
-        pygame.draw.circle(self.screen, (50, 200, 50), (x, y), 23)
-        pygame.draw.circle(self.screen, (220, 50, 50), (x, y - 5), 22)
-        pygame.draw.circle(self.screen, (140, 80, 50), (x, y - 10), 21)
-        pygame.draw.circle(self.screen, (255, 220, 80), (x, y - 15), 24)
-        pygame.draw.circle(self.screen, (200, 150, 80), (x, y - 20), 26)
+        pygame.draw.circle(self.screen, (220, 170, 90), (x, y + 10), 25)
+        pygame.draw.circle(self.screen, (60, 220, 60), (x, y), 23)
+        pygame.draw.circle(self.screen, (240, 60, 60), (x, y - 5), 22)
+        pygame.draw.circle(self.screen, (160, 90, 60), (x, y - 10), 21)
+        pygame.draw.circle(self.screen, (255, 230, 90), (x, y - 15), 24)
+        pygame.draw.circle(self.screen, (220, 170, 90), (x, y - 20), 26)
     
     def draw_fallback_salad(self, x, y):
         pygame.draw.ellipse(self.screen, (255, 255, 255), (x - 25, y + 5, 50, 20))
-        pygame.draw.circle(self.screen, (80, 200, 80), (x, y - 5), 22)
+        pygame.draw.circle(self.screen, (90, 200, 90), (x, y - 5), 22)
         for pos in [(x - 10, y), (x + 10, y - 3), (x, y + 5)]:
-            pygame.draw.circle(self.screen, (220, 50, 50), pos, 4)
+            pygame.draw.circle(self.screen, (240, 60, 60), pos, 4)
     
     def get_interaction_zones(self):
         return {
@@ -590,11 +549,14 @@ class KitchenRenderer:
         self.draw_plating_station(asset_manager)
         self.draw_service_station()
         
-        # Mettre à jour les zones pour TOUS les chefs
+        # Animation de découpe si active
+        if self.cutting_animation.active:
+            self.cutting_animation.update()
+            self.cutting_animation.draw()
+        
         if bot_manager and hasattr(bot_manager, 'bots'):
             zones = self.get_interaction_zones()
             
-            # Mettre à jour les positions des bacs d'ingrédients
             bins = {}
             if hasattr(self, 'ingredient_positions'):
                 bins = self.ingredient_positions
@@ -611,10 +573,9 @@ class KitchenRenderer:
             distance = ((bot.x - self.service_area['x'] - 60)**2 + 
                        (bot.y - self.service_area['y'] - 150)**2)**0.5
             
-            if distance < 30:  # Le bot est à la zone de livraison
+            if distance < 30:
                 my_order = bot.get_my_order()
                 if my_order:
-                    # Déclencher l'animation de livraison
                     self.add_delivered_dish(my_order['order_data']['name'])
                     return True
         return False
@@ -638,20 +599,18 @@ class KitchenRenderer:
         status_x = 15 + (chef_index * (panel_width + margin))
         status_y = HEIGHT - 85
         
-        # Si ça déborde, passer à la ligne du dessus
         if status_x + panel_width > WIDTH - 15:
             status_x = 15 + ((chef_index % 3) * (panel_width + margin))
             status_y = HEIGHT - 165
         
         status_rect = pygame.Rect(status_x, status_y, panel_width, panel_height)
         status_bg = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
-        status_bg.fill((255, 255, 255, 240))
+        status_bg.fill((255, 255, 255, 250))
         self.screen.blit(status_bg, status_rect)
         
         border_color = bot.get_state_color()
         pygame.draw.rect(self.screen, border_color, status_rect, 3)
         
-        # Nom + État
         chef_line = f"👨‍🍳 {bot.chef_name}"
         chef_text = self.font_small.render(chef_line, True, (0, 0, 0))
         self.screen.blit(chef_text, (status_rect.x + 8, status_rect.y + 5))
@@ -659,7 +618,6 @@ class KitchenRenderer:
         state_text = self.font_small.render(bot.get_state_text(), True, border_color)
         self.screen.blit(state_text, (status_rect.x + 8, status_rect.y + 22))
         
-        # Commande
         my_order = bot.get_my_order()
         if my_order:
             order_name = my_order['order_data']['name']
@@ -667,10 +625,9 @@ class KitchenRenderer:
             total = len(my_order['order_data']['ingredients'])
             
             order_info = f"📋 {order_name} ({len(prepared)}/{total})"
-            order_text = self.font_small.render(order_info, True, (0, 80, 0))
+            order_text = self.font_small.render(order_info, True, (0, 100, 0))
             self.screen.blit(order_text, (status_rect.x + 8, status_rect.y + 39))
             
-            # Action en cours
             action_info = ""
             if bot.inv == "plated_dish":
                 action_info = "🚀 Livre le plat"
@@ -684,5 +641,287 @@ class KitchenRenderer:
                 action_info = f"🍽️ Assemble ({plate_time_left:.1f}s)"
             
             if action_info:
-                action_text = self.font_small.render(action_info, True, (180, 90, 0))
+                action_text = self.font_small.render(action_info, True, (200, 100, 0))
                 self.screen.blit(action_text, (status_rect.x + 8, status_rect.y + 53))
+
+
+class CuttingAnimation:
+    """Gère l'animation réaliste de découpe des ingrédients"""
+    
+    def __init__(self, screen):
+        self.screen = screen
+        self.active = False
+        self.ingredient = None
+        self.start_time = 0
+        self.duration = 1.2
+        self.particles = []
+        self.board_pos = None
+        
+        self.ingredient_config = {
+            'tomate': {
+                'slices': 4,
+                'slice_color': (255, 107, 107),
+                'seed_color': (255, 203, 119),
+                'main_color': (230, 57, 70)
+            },
+            'laitue': {
+                'slices': 6,
+                'slice_color': (82, 183, 136),
+                'leaf_color': (149, 213, 178),
+                'main_color': (45, 106, 79)
+            },
+            'oignon': {
+                'slices': 5,
+                'slice_color': (229, 212, 193),
+                'ring_color': (248, 241, 229),
+                'main_color': (200, 182, 166)
+            },
+            'steak': {
+                'slices': 3,
+                'slice_color': (160, 82, 45),
+                'grill_color': (101, 67, 33),
+                'main_color': (139, 69, 19)
+            },
+            'pain': {
+                'slices': 4,
+                'slice_color': (244, 229, 194),
+                'crust_color': (139, 115, 85),
+                'main_color': (218, 165, 32)
+            },
+            'fromage': {
+                'slices': 3,
+                'slice_color': (255, 230, 120),
+                'hole_color': (255, 200, 50),
+                'main_color': (255, 220, 80)
+            }
+        }
+    
+    def start(self, ingredient_type, board_x, board_y):
+        """Démarre l'animation de découpe"""
+        if ingredient_type not in self.ingredient_config:
+            return
+        
+        self.active = True
+        self.ingredient = ingredient_type
+        self.start_time = time.time()
+        self.board_pos = (board_x, board_y)
+        self.particles = []
+        print(f"🔪 Découpe de {ingredient_type} commencée!")
+    
+    def stop(self):
+        """Arrête l'animation"""
+        self.active = False
+        self.ingredient = None
+        self.particles = []
+    
+    def update(self):
+        """Met à jour l'animation"""
+        if not self.active:
+            return False
+        
+        elapsed = time.time() - self.start_time
+        progress = min(elapsed / self.duration, 1.0)
+        
+        if progress < 0.8 and len(self.particles) < 30:
+            if pygame.time.get_ticks() % 3 == 0:
+                self.create_particles()
+        
+        self.update_particles()
+        
+        if progress >= 1.0:
+            self.stop()
+            return True
+        
+        return False
+    
+    def create_particles(self):
+        """Crée des particules de découpe"""
+        if not self.board_pos:
+            return
+        
+        config = self.ingredient_config[self.ingredient]
+        board_x, board_y = self.board_pos
+        
+        for _ in range(3):
+            particle = {
+                'x': board_x + (pygame.time.get_ticks() % 20 - 10),
+                'y': board_y,
+                'vx': (pygame.time.get_ticks() % 8 - 4) * 0.5,
+                'vy': -(pygame.time.get_ticks() % 6 + 2),
+                'size': 2 + pygame.time.get_ticks() % 3,
+                'color': config['slice_color'],
+                'life': 1.0
+            }
+            self.particles.append(particle)
+    
+    def update_particles(self):
+        """Met à jour la physique des particules"""
+        for particle in self.particles[:]:
+            particle['x'] += particle['vx']
+            particle['y'] += particle['vy']
+            particle['vy'] += 0.3
+            particle['life'] -= 0.02
+            
+            if particle['life'] <= 0:
+                self.particles.remove(particle)
+    
+    def draw(self):
+        """Dessine l'animation de découpe"""
+        if not self.active or not self.board_pos:
+            return
+        
+        elapsed = time.time() - self.start_time
+        progress = min(elapsed / self.duration, 1.0)
+        
+        board_x, board_y = self.board_pos
+        config = self.ingredient_config[self.ingredient]
+        
+        self.draw_slices(board_x, board_y, progress, config)
+        
+        if progress < 0.8:
+            self.draw_knife(board_x, board_y, progress)
+        
+        self.draw_particles()
+    
+    def draw_slices(self, board_x, board_y, progress, config):
+        """Dessine les tranches qui se séparent"""
+        num_slices = config['slices']
+        slice_spacing = 100 / num_slices
+        separation = min(progress * 2, 1.0) * 15
+        
+        for i in range(num_slices):
+            offset = (i - num_slices / 2) * slice_spacing
+            slice_x = int(board_x + offset + (i - num_slices / 2) * separation)
+            slice_y = board_y
+            
+            if self.ingredient == 'tomate':
+                self.draw_tomato_slice(slice_x, slice_y, config)
+            elif self.ingredient == 'laitue':
+                self.draw_lettuce_slice(slice_x, slice_y, config)
+            elif self.ingredient == 'oignon':
+                self.draw_onion_slice(slice_x, slice_y, config)
+            elif self.ingredient == 'steak':
+                self.draw_steak_slice(slice_x, slice_y, config)
+            elif self.ingredient == 'pain':
+                self.draw_bread_slice(slice_x, slice_y, config)
+            elif self.ingredient == 'fromage':
+                self.draw_cheese_slice(slice_x, slice_y, config)
+    
+    def draw_tomato_slice(self, x, y, config):
+        """Dessine une tranche de tomate avec pépins"""
+        pygame.draw.circle(self.screen, config['slice_color'], (x, y), 20)
+        pygame.draw.circle(self.screen, config['main_color'], (x, y), 17)
+        
+        for i in range(6):
+            angle = (i / 6) * 2 * math.pi
+            px = x + int(math.cos(angle) * 10)
+            py = y + int(math.sin(angle) * 10)
+            pygame.draw.circle(self.screen, config['seed_color'], (px, py), 2)
+        
+        pygame.draw.circle(self.screen, (255, 200, 200), (x - 6, y - 6), 4)
+    
+    def draw_lettuce_slice(self, x, y, config):
+        """Dessine une feuille de laitue coupée"""
+        rect = pygame.Rect(x - 18, y - 22, 36, 44)
+        pygame.draw.ellipse(self.screen, config['slice_color'], rect)
+        
+        inner_rect = pygame.Rect(x - 15, y - 19, 30, 38)
+        pygame.draw.ellipse(self.screen, config['leaf_color'], inner_rect)
+        
+        pygame.draw.line(self.screen, (255, 255, 255), (x, y - 20), (x, y + 20), 2)
+    
+    def draw_onion_slice(self, x, y, config):
+        """Dessine une rondelle d'oignon avec anneaux"""
+        pygame.draw.circle(self.screen, config['ring_color'], (x, y), 20)
+        
+        for radius in [18, 14, 10, 6]:
+            pygame.draw.circle(self.screen, config['slice_color'], (x, y), radius, 2)
+        
+        for i in range(8):
+            angle = (i / 8) * 2 * math.pi
+            end_x = x + int(math.cos(angle) * 18)
+            end_y = y + int(math.sin(angle) * 18)
+            pygame.draw.line(self.screen, config['main_color'], (x, y), (end_x, end_y), 1)
+    
+    def draw_steak_slice(self, x, y, config):
+        """Dessine une tranche de steak avec marques de grill"""
+        rect = pygame.Rect(x - 20, y - 15, 40, 30)
+        pygame.draw.ellipse(self.screen, config['slice_color'], rect)
+        
+        for i in range(4):
+            y_pos = y - 12 + i * 8
+            pygame.draw.line(self.screen, config['grill_color'], 
+                           (x - 18, y_pos), (x + 18, y_pos), 3)
+    
+    def draw_bread_slice(self, x, y, config):
+        """Dessine une tranche de pain avec alvéoles"""
+        rect = pygame.Rect(x - 15, y - 20, 30, 40)
+        pygame.draw.rect(self.screen, config['crust_color'], rect)
+        
+        inner_rect = pygame.Rect(x - 12, y - 17, 24, 34)
+        pygame.draw.rect(self.screen, config['slice_color'], inner_rect)
+    
+    def draw_cheese_slice(self, x, y, config):
+        """Dessine une tranche de fromage avec trous"""
+        points = [(x - 15, y - 10), (x + 15, y - 10), 
+                 (x + 12, y + 10), (x - 12, y + 10)]
+        pygame.draw.polygon(self.screen, config['main_color'], points)
+        pygame.draw.polygon(self.screen, config['slice_color'], points, 2)
+        
+        for hole_pos in [(-6, -3), (4, 2), (-2, 5)]:
+            hx = x + hole_pos[0]
+            hy = y + hole_pos[1]
+            pygame.draw.circle(self.screen, config['hole_color'], (hx, hy), 3)
+    
+    def draw_knife(self, board_x, board_y, progress):
+        """Dessine le couteau qui coupe"""
+        knife_y = board_y - 50 + progress * 100
+        knife_x = board_x - 20
+        
+        shake = math.sin(progress * math.pi * 8) * 3
+        knife_x += shake
+        
+        blade_points = [
+            (knife_x, knife_y - 30),
+            (knife_x + 15, knife_y),
+            (knife_x - 3, knife_y)
+        ]
+        
+        shadow_points = [(p[0] + 2, p[1] + 2) for p in blade_points]
+        pygame.draw.polygon(self.screen, (100, 100, 100), shadow_points)
+        pygame.draw.polygon(self.screen, (200, 200, 200), blade_points)
+        
+        reflet_points = [
+            (knife_x + 2, knife_y - 28),
+            (knife_x + 6, knife_y - 15),
+            (knife_x + 4, knife_y - 15)
+        ]
+        pygame.draw.polygon(self.screen, (255, 255, 255), reflet_points)
+        
+        pygame.draw.line(self.screen, (150, 150, 150), 
+                        blade_points[1], blade_points[2], 2)
+        
+        handle_rect = pygame.Rect(knife_x - 5, knife_y, 10, 20)
+        pygame.draw.rect(self.screen, (70, 70, 70), handle_rect)
+        
+        inner_handle = pygame.Rect(knife_x - 4, knife_y + 1, 8, 18)
+        pygame.draw.rect(self.screen, (107, 68, 35), inner_handle)
+        
+        for rivet_y in [knife_y + 5, knife_y + 15]:
+            pygame.draw.circle(self.screen, (50, 50, 50), (knife_x, rivet_y), 2)
+    
+    def draw_particles(self):
+        """Dessine les particules volantes"""
+        for particle in self.particles:
+            alpha = int(255 * particle['life'])
+            color = (*particle['color'], alpha)
+            
+            particle_surf = pygame.Surface((particle['size'] * 2, particle['size'] * 2), 
+                                          pygame.SRCALPHA)
+            pygame.draw.circle(particle_surf, color, 
+                             (particle['size'], particle['size']), 
+                             particle['size'])
+            
+            self.screen.blit(particle_surf, 
+                           (int(particle['x'] - particle['size']), 
+                            int(particle['y'] - particle['size'])))

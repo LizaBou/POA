@@ -319,6 +319,7 @@ def main():
                     # 4️⃣ Afficher le statut de TOUS les chefs
                     for bot in bot_manager.bots:
                         kitchen_renderer.draw_chef_status(bot)
+                        
                 else:
                     draw_basic_kitchen(screen)
                     for bot in bot_manager.bots:
