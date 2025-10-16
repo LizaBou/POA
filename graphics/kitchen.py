@@ -659,13 +659,13 @@ class CuttingAnimation:
         
         self.ingredient_config = {
             'tomate': {
-                'slices': 4,
+                'slices': 3,
                 'slice_color': (255, 107, 107),
                 'seed_color': (255, 203, 119),
                 'main_color': (230, 57, 70)
             },
             'laitue': {
-                'slices': 6,
+                'slices': 3,
                 'slice_color': (82, 183, 136),
                 'leaf_color': (149, 213, 178),
                 'main_color': (45, 106, 79)
@@ -683,13 +683,13 @@ class CuttingAnimation:
                 'main_color': (139, 69, 19)
             },
             'pain': {
-                'slices': 4,
+                'slices': 2,
                 'slice_color': (244, 229, 194),
                 'crust_color': (139, 115, 85),
                 'main_color': (218, 165, 32)
             },
             'fromage': {
-                'slices': 3,
+                'slices': 1,
                 'slice_color': (255, 230, 120),
                 'hole_color': (255, 200, 50),
                 'main_color': (255, 220, 80)
