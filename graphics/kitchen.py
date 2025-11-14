@@ -1,4 +1,4 @@
-# kitchen.py - VERSION AVEC ANIMATION DE DÉCOUPE RÉALISTE
+# kitchen.py - VERSION AVEC VISUELS AMÉLIORÉS
 
 import pygame
 import time
@@ -31,49 +31,139 @@ class KitchenRenderer:
         self.setup_kitchen_layout()
         self.delivered_dishes = []
         self.cutting_animation = CuttingAnimation(screen)
+        
+        # ⭐ NOUVEAUX ÉLÉMENTS VISUELS
+        self.steam_particles = []  # Vapeur au-dessus de la plaque
+        self.sparkle_particles = []  # Étincelles à la livraison
 
     def setup_kitchen_layout(self):
-        self.storage_area = {'x': 40, 'y': 110, 'w': 280, 'h': 320}
-        self.work_area = {'x': 350, 'y': 120, 'w': 200, 'h': 140}
-        self.plating_area = {'x': 570, 'y': 120, 'w': 200, 'h': 140}
+        # ⭐ Plans de travail alignés en bois + zone de cuisson
+        self.storage_area = {'x': 40, 'y': 120, 'w': 280, 'h': 140}
+        self.work_area = {'x': 330, 'y': 120, 'w': 200, 'h': 140}
+        self.cooking_area = {'x': 330, 'y': 270, 'w': 200, 'h': 120}  # ⭐ NOUVEAU
+        self.plating_area = {'x': 540, 'y': 120, 'w': 200, 'h': 140}
         self.service_area = {'x': 790, 'y': 120, 'w': 120, 'h': 300}
 
     def draw_floor(self):
+        """Sol avec damier et reflets"""
         tile_size = 50
         floor_light = (210, 210, 210)
         floor_dark = (190, 190, 190)
+        
         for x in range(0, WIDTH, tile_size):
             for y in range(0, HEIGHT, tile_size):
                 color = floor_light if (x // tile_size + y // tile_size) % 2 == 0 else floor_dark
                 pygame.draw.rect(self.screen, color, (x, y, tile_size, tile_size))
+                
+                # ⭐ Reflet subtil sur les carreaux
+                if (x // tile_size + y // tile_size) % 2 == 0:
+                    shine_surf = pygame.Surface((tile_size, tile_size), pygame.SRCALPHA)
+                    pygame.draw.circle(shine_surf, (255, 255, 255, 15), (tile_size // 2, tile_size // 2), tile_size // 3)
+                    self.screen.blit(shine_surf, (x, y))
+                
                 pygame.draw.line(self.screen, (200, 200, 200), (x, y), (x + tile_size, y), 1)
                 pygame.draw.line(self.screen, (200, 200, 200), (x, y), (x, y + tile_size), 1)
+
+    def draw_wall_decorations(self):
+        """⭐ NOUVEAU : Décorations murales"""
+        current_time = time.time()
+        
+        # Horloge murale
+        clock_x, clock_y = WIDTH - 80, 50
+        pygame.draw.circle(self.screen, (240, 240, 240), (clock_x, clock_y), 25)
+        pygame.draw.circle(self.screen, (200, 200, 200), (clock_x, clock_y), 25, 3)
+        
+        # Aiguilles qui bougent
+        hour_angle = (current_time % 43200) / 43200 * 2 * math.pi - math.pi / 2
+        minute_angle = (current_time % 3600) / 3600 * 2 * math.pi - math.pi / 2
+        
+        pygame.draw.line(self.screen, (50, 50, 50), (clock_x, clock_y),
+                        (clock_x + math.cos(hour_angle) * 12, clock_y + math.sin(hour_angle) * 12), 3)
+        pygame.draw.line(self.screen, (50, 50, 50), (clock_x, clock_y),
+                        (clock_x + math.cos(minute_angle) * 18, clock_y + math.sin(minute_angle) * 18), 2)
+        
+        # Centre de l'horloge
+        pygame.draw.circle(self.screen, (200, 50, 50), (clock_x, clock_y), 3)
+        
+        # Étagères décoratives au-dessus du stockage
+        shelf_y = 85
+        shelf_color = (120, 80, 50)
+        pygame.draw.rect(self.screen, shelf_color, (50, shelf_y, 250, 8))
+        pygame.draw.rect(self.screen, (80, 50, 30), (50, shelf_y, 250, 8), 2)
+        
+        # Pots sur l'étagère
+        pot_positions = [80, 140, 200, 260]
+        for i, pot_x in enumerate(pot_positions):
+            pot_color = [(200, 100, 100), (100, 200, 100), (100, 100, 200), (200, 200, 100)][i]
+            pygame.draw.circle(self.screen, pot_color, (pot_x, shelf_y - 8), 8)
+            pygame.draw.circle(self.screen, (255, 255, 255, 150), (pot_x - 2, shelf_y - 10), 3)
+
+    def draw_overhead_lamps(self):
+        """⭐ NOUVEAU : Lampes suspendues au-dessus des stations"""
+        current_time = time.time()
+        
+        lamp_positions = [
+            (180, 90, (255, 230, 150)),  # Au-dessus stockage
+            (450, 90, (255, 240, 200)),  # Au-dessus plan de travail
+            (670, 90, (255, 245, 220)),  # Au-dessus assemblage
+        ]
+        
+        for lamp_x, lamp_y, light_color in lamp_positions:
+            # Câble de suspension
+            pygame.draw.line(self.screen, (80, 80, 80), (lamp_x, 0), (lamp_x, lamp_y), 2)
+            
+            # Corps de la lampe
+            lamp_rect = pygame.Rect(lamp_x - 20, lamp_y, 40, 15)
+            pygame.draw.ellipse(self.screen, (100, 100, 100), lamp_rect)
+            pygame.draw.ellipse(self.screen, (70, 70, 70), lamp_rect, 2)
+            
+            # Halo de lumière (pulsant)
+            pulse = int(30 + 10 * math.sin(current_time * 2 + lamp_x))
+            for radius in [80, 60, 40]:
+                alpha = pulse // (radius // 20)
+                light_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(light_surf, (*light_color, alpha), (radius, radius), radius)
+                self.screen.blit(light_surf, (lamp_x - radius, lamp_y + 15 - radius))
 
     def draw_individual_ingredient_stations(self, asset_manager):
         import game_state
         current_time = time.time()
         
+        # ⭐ NOUVEAU : Plan de travail en bois unifié pour le stockage
+        storage_rect = pygame.Rect(self.storage_area['x'], self.storage_area['y'], 
+                                   self.storage_area['w'], self.storage_area['h'])
+        draw_gradient_rect(self.screen, (160, 110, 70), (140, 90, 60), storage_rect)
+        
+        # Texture bois
+        for i in range(0, self.storage_area['w'], 30):
+            line_x = self.storage_area['x'] + i
+            pygame.draw.line(self.screen, (140, 100, 65), 
+                           (line_x, self.storage_area['y']), 
+                           (line_x, self.storage_area['y'] + self.storage_area['h']), 1)
+        
+        pygame.draw.rect(self.screen, (100, 70, 40), storage_rect, 3)
+        
         title_bg = pygame.Rect(self.storage_area['x'], self.storage_area['y'] - 30, self.storage_area['w'], 25)
-        draw_gradient_rect(self.screen, (100, 100, 100), (80, 80, 80), title_bg)
-        title = self.font_small.render("STOCKAGE DES INGRÉDIENTS", True, (255, 255, 255))
+        draw_gradient_rect(self.screen, (100, 70, 40), (80, 60, 30), title_bg)
+        title = self.font_small.render("🧊 STOCKAGE", True, (255, 255, 255))
         self.screen.blit(title, (self.storage_area['x'] + 10, self.storage_area['y'] - 25))
         
         ingredient_types = list(set(ing["type"] for ing in game_state.ingredients))
         if not ingredient_types:
             ingredient_types = ["laitue", "tomate", "pain", "steak", "fromage"]
         
-        cols = 3
-        station_width = 85
-        station_height = 70
+        # ⭐ NOUVEAU : Bacs en bois en ligne horizontale
+        cols = len(ingredient_types)
+        station_width = (self.storage_area['w'] - 20) // cols - 5
+        station_height = self.storage_area['h'] - 30
         self.ingredient_positions = {}
 
         for i, ingredient_type in enumerate(ingredient_types):
-            col = i % cols
-            row = i // cols
-            station_x = self.storage_area['x'] + 10 + col * (station_width + 10)
-            station_y = self.storage_area['y'] + 15 + row * (station_height + 15)
+            station_x = self.storage_area['x'] + 10 + i * (station_width + 5)
+            station_y = self.storage_area['y'] + 15
             self.ingredient_positions[ingredient_type] = (station_x + station_width//2, station_y + station_height//2)
             
+            # ⭐ Bac en bois
             station_rect = pygame.Rect(station_x, station_y, station_width, station_height)
             
             available_ingredients = [ing for ing in game_state.ingredients 
@@ -81,15 +171,16 @@ class KitchenRenderer:
                                     and current_time >= ing.get("spawn_time", 0)]
             is_available = len(available_ingredients) > 0
 
+            # ⭐ Bois clair pour les bacs
+            draw_gradient_rect(self.screen, (210, 160, 100), (190, 140, 80), station_rect)
+            
             if is_available:
-                draw_gradient_rect(self.screen, (250, 245, 235), (240, 230, 220), station_rect)
                 border_color = (100, 150, 100)
                 status_color = (100, 180, 100)
                 glow = int(25 + 15 * math.sin(current_time * 3))
             else:
-                draw_gradient_rect(self.screen, (235, 235, 235), (220, 220, 220), station_rect)
-                border_color = (150, 150, 150)
-                status_color = (170, 170, 170)
+                border_color = (120, 90, 60)
+                status_color = (150, 120, 90)
                 glow = 0
 
             pygame.draw.rect(self.screen, border_color, station_rect, 2)
@@ -99,14 +190,17 @@ class KitchenRenderer:
                 pygame.draw.rect(glow_surf, (100, 180, 100, glow), (0, 0, station_width + 10, station_height + 10), 3)
                 self.screen.blit(glow_surf, (station_x - 5, station_y - 5))
 
-            storage_inner = pygame.Rect(station_x + 7, station_y + 25, 72, 34)
+            # Zone intérieure du bac
+            storage_inner = pygame.Rect(station_x + 5, station_y + 25, station_width - 10, station_height - 30)
             pygame.draw.rect(self.screen, self.ingredient_config[ingredient_type]["color"], storage_inner)
             pygame.draw.rect(self.screen, (80, 60, 40), storage_inner, 2)
 
             if is_available and asset_manager:
-                for j, ing in enumerate(available_ingredients[:4]):
-                    ing_x = storage_inner.x + 18 + (j % 2) * 25
-                    ing_y = storage_inner.y + 9 + (j // 2) * 16
+                # Afficher les ingrédients empilés verticalement
+                max_display = min(4, len(available_ingredients))
+                for j, ing in enumerate(available_ingredients[:max_display]):
+                    ing_x = storage_inner.centerx
+                    ing_y = storage_inner.y + 15 + j * 20
                     ing["x"] = ing_x
                     ing["y"] = ing_y
                     float_y = ing_y + math.sin(current_time * 3 + j) * 1.5
@@ -120,13 +214,16 @@ class KitchenRenderer:
                         pygame.draw.circle(self.screen, color, (ing_x, int(float_y)), 8)
                         pygame.draw.circle(self.screen, (255, 255, 255), (ing_x, int(float_y)), 8, 2)
 
+            # Étiquette en haut
             label_overlay = pygame.Surface((station_width, 20), pygame.SRCALPHA)
-            label_overlay.fill((80, 80, 80, 200))
+            label_overlay.fill((80, 60, 40, 220))
             self.screen.blit(label_overlay, (station_x, station_y))
             label_text = self.font_small.render(ingredient_type.capitalize(), True, (255, 255, 255))
-            self.screen.blit(label_text, (station_x + 10, station_y + 5))
+            label_rect = label_text.get_rect(center=(station_x + station_width//2, station_y + 10))
+            self.screen.blit(label_text, label_rect)
 
-            led_x = station_x + station_width - 12
+            # LED d'état
+            led_x = station_x + station_width - 8
             led_y = station_y + 8
             
             if is_available:
@@ -136,25 +233,35 @@ class KitchenRenderer:
             pygame.draw.circle(self.screen, status_color, (led_x, led_y), 4)
             pygame.draw.circle(self.screen, (255, 255, 255), (led_x, led_y), 4, 1)
             
+            # Badge quantité
             if is_available:
                 qty = len(available_ingredients)
                 badge_color = (50, 150, 50) if qty > 2 else (100, 180, 100)
-                pygame.draw.circle(self.screen, badge_color, (led_x, led_y + 18), 8)
-                pygame.draw.circle(self.screen, (255, 255, 255), (led_x, led_y + 18), 8, 1)
+                badge_y = station_y + station_height - 10
+                pygame.draw.circle(self.screen, badge_color, (station_x + station_width//2, badge_y), 8)
+                pygame.draw.circle(self.screen, (255, 255, 255), (station_x + station_width//2, badge_y), 8, 1)
                 qty_text = self.font_small.render(str(qty), True, (255, 255, 255))
-                qty_rect = qty_text.get_rect(center=(led_x, led_y + 18))
+                qty_rect = qty_text.get_rect(center=(station_x + station_width//2, badge_y))
                 self.screen.blit(qty_text, qty_rect)
 
     def draw_work_station(self, asset_manager):
         work_rect = pygame.Rect(self.work_area['x'], self.work_area['y'], 
                               self.work_area['w'], self.work_area['h'])
         draw_gradient_rect(self.screen, (160, 110, 70), (140, 90, 60), work_rect)
+        
+        # ⭐ Texture bois
+        for i in range(0, self.work_area['w'], 30):
+            line_x = self.work_area['x'] + i
+            pygame.draw.line(self.screen, (140, 100, 65), 
+                           (line_x, self.work_area['y']), 
+                           (line_x, self.work_area['y'] + self.work_area['h']), 1)
+        
         pygame.draw.rect(self.screen, (100, 70, 40), work_rect, 3)
         
         title_bg = pygame.Rect(self.work_area['x'], self.work_area['y'] - 30, 
                               self.work_area['w'], 25)
         draw_gradient_rect(self.screen, (100, 70, 40), (80, 60, 30), title_bg)
-        title = self.font_small.render("PLAN DE TRAVAIL", True, (255, 255, 255))
+        title = self.font_small.render("🔪 PLAN DE TRAVAIL", True, (255, 255, 255))
         self.screen.blit(title, (self.work_area['x'] + 10, self.work_area['y'] - 25))
         
         cutting_x = self.work_area['x'] + 15
@@ -166,9 +273,19 @@ class KitchenRenderer:
         draw_gradient_rect(self.screen, (210, 160, 100), (180, 130, 80), cutting_rect)
         pygame.draw.rect(self.screen, (120, 80, 40), cutting_rect, 2)
         
+        # ⭐ Marques d'usure sur la planche
         for i in range(5):
             line_x = cutting_x + 10 + i * 14
             pygame.draw.line(self.screen, (160, 110, 60), (line_x, cutting_y + 10), (line_x, cutting_y + 60), 1)
+        
+        # ⭐ Couteau accroché quand pas utilisé
+        knife_holder_x = cutting_x + cutting_w + 5
+        knife_holder_y = cutting_y + 10
+        pygame.draw.rect(self.screen, (100, 100, 100), (knife_holder_x, knife_holder_y, 8, 30))
+        pygame.draw.polygon(self.screen, (180, 180, 180), 
+                          [(knife_holder_x + 4, knife_holder_y + 5),
+                           (knife_holder_x + 10, knife_holder_y + 12),
+                           (knife_holder_x + 4, knife_holder_y + 12)])
         
         self.draw_prepared_area(asset_manager)
         self.cutting_position = (cutting_x + cutting_w//2, cutting_y + cutting_h//2)
@@ -189,7 +306,7 @@ class KitchenRenderer:
         title_overlay = pygame.Surface((prepared_w, 16), pygame.SRCALPHA)
         title_overlay.fill((180, 140, 60, 200))
         self.screen.blit(title_overlay, (prepared_x, prepared_y - 16))
-        title = self.font_small.render("PRÉPARÉS", True, (255, 255, 255))
+        title = self.font_small.render("✓ PRÉPARÉS", True, (255, 255, 255))
         self.screen.blit(title, (prepared_x + 5, prepared_y - 15))
         
         all_prepared = []
@@ -217,23 +334,71 @@ class KitchenRenderer:
                     pygame.draw.circle(self.screen, ing_config["color"], (pos_x, int(pos_y + float_offset)), 12)
                     pygame.draw.circle(self.screen, (255, 255, 255), (pos_x, int(pos_y + float_offset)), 12, 2)
             
+            # Checkmark
             check_x, check_y = pos_x + 10, pos_y - 10
             pygame.draw.circle(self.screen, (50, 180, 50), (check_x, check_y), 6)
             pygame.draw.circle(self.screen, (150, 255, 150), (check_x, check_y), 4)
+
+    def update_steam_particles(self):
+        """⭐ NOUVEAU : Gère la vapeur au-dessus de la plaque de cuisson"""
+        import game_state
+        current_time = time.time()
+        
+        # Créer de la vapeur si quelqu'un cuisine
+        if hasattr(game_state, 'bot_manager'):
+            for bot in game_state.bot_manager.bots:
+                if bot.state == "cutting" and bot.preparing in ["steak"]:
+                    # Vapeur au-dessus de la planche
+                    if pygame.time.get_ticks() % 10 == 0:
+                        self.steam_particles.append({
+                            'x': self.cutting_position[0] + (pygame.time.get_ticks() % 10 - 5),
+                            'y': self.cutting_position[1],
+                            'vy': -0.5,
+                            'size': 4,
+                            'life': 1.0
+                        })
+        
+        # Mettre à jour les particules de vapeur
+        for particle in self.steam_particles[:]:
+            particle['y'] += particle['vy']
+            particle['life'] -= 0.01
+            particle['size'] += 0.1
+            
+            if particle['life'] <= 0:
+                self.steam_particles.remove(particle)
+
+    def draw_steam_particles(self):
+        """Dessine la vapeur"""
+        for particle in self.steam_particles:
+            alpha = int(100 * particle['life'])
+            steam_surf = pygame.Surface((int(particle['size'] * 2), int(particle['size'] * 2)), pygame.SRCALPHA)
+            pygame.draw.circle(steam_surf, (255, 255, 255, alpha), 
+                             (int(particle['size']), int(particle['size'])), 
+                             int(particle['size']))
+            self.screen.blit(steam_surf, (int(particle['x'] - particle['size']), int(particle['y'] - particle['size'])))
 
     def draw_plating_station(self, asset_manager):
         import game_state
         current_time = time.time()
         
+        # ⭐ NOUVEAU : Plan en bois comme les autres
         plating_rect = pygame.Rect(self.plating_area['x'], self.plating_area['y'], 
                                   self.plating_area['w'], self.plating_area['h'])
-        draw_gradient_rect(self.screen, (220, 225, 235), (200, 205, 215), plating_rect)
-        pygame.draw.rect(self.screen, (140, 150, 170), plating_rect, 3)
+        draw_gradient_rect(self.screen, (160, 110, 70), (140, 90, 60), plating_rect)
+        
+        # Texture bois
+        for i in range(0, self.plating_area['h'], 10):
+            line_y = self.plating_area['y'] + i
+            pygame.draw.line(self.screen, (140, 100, 65), 
+                           (self.plating_area['x'], line_y), 
+                           (self.plating_area['x'] + self.plating_area['w'], line_y), 1)
+        
+        pygame.draw.rect(self.screen, (100, 70, 40), plating_rect, 3)
         
         title_bg = pygame.Rect(self.plating_area['x'], self.plating_area['y'] - 30, 
                               self.plating_area['w'], 25)
-        draw_gradient_rect(self.screen, (140, 150, 170), (120, 130, 150), title_bg)
-        title = self.font_small.render("STATION D'ASSEMBLAGE", True, (255, 255, 255))
+        draw_gradient_rect(self.screen, (100, 70, 40), (80, 60, 30), title_bg)
+        title = self.font_small.render("🍽️ ASSEMBLAGE", True, (255, 255, 255))
         self.screen.blit(title, (self.plating_area['x'] + 10, self.plating_area['y'] - 25))
         
         empty_plates_x = self.plating_area['x'] + 15
@@ -242,8 +407,8 @@ class KitchenRenderer:
         empty_plates_h = 70
         
         empty_rect = pygame.Rect(empty_plates_x, empty_plates_y, empty_plates_w, empty_plates_h)
-        draw_gradient_rect(self.screen, (255, 255, 255), (245, 245, 230), empty_rect)
-        pygame.draw.rect(self.screen, (200, 200, 180), empty_rect, 2)
+        draw_gradient_rect(self.screen, (210, 160, 100), (190, 140, 80), empty_rect)
+        pygame.draw.rect(self.screen, (120, 80, 40), empty_rect, 2)
         
         for i in range(3):
             plate_y = empty_plates_y + 15 + i * 4
@@ -271,8 +436,8 @@ class KitchenRenderer:
             chef_data = plating_chefs[0]
             ingredients = chef_data['ingredients']
             
-            draw_gradient_rect(self.screen, (255, 250, 220), (245, 235, 200), assembly_rect)
-            pygame.draw.rect(self.screen, (220, 180, 100), assembly_rect, 2)
+            draw_gradient_rect(self.screen, (210, 160, 100), (190, 140, 80), assembly_rect)
+            pygame.draw.rect(self.screen, (120, 80, 40), assembly_rect, 2)
             
             plate_center_x = assembly_x + assembly_w//2
             plate_center_y = assembly_y + assembly_h//2
@@ -308,8 +473,8 @@ class KitchenRenderer:
                         pygame.draw.circle(self.screen, ing_config["color"], (int(ing_x), int(ing_y)), 14)
                         pygame.draw.circle(self.screen, (255, 255, 255), (int(ing_x), int(ing_y)), 14, 2)
         else:
-            draw_gradient_rect(self.screen, (250, 250, 250), (235, 235, 230), assembly_rect)
-            pygame.draw.rect(self.screen, (180, 180, 180), assembly_rect, 2)
+            draw_gradient_rect(self.screen, (210, 160, 100), (190, 140, 80), assembly_rect)
+            pygame.draw.rect(self.screen, (120, 80, 40), assembly_rect, 2)
         
         self.plating_position = (assembly_x + assembly_w//2, assembly_y + assembly_h//2)
 
@@ -330,8 +495,16 @@ class KitchenRenderer:
         
         title_bg = pygame.Rect(self.service_area['x'], self.service_area['y'] - 30, self.service_area['w'], 25)
         draw_gradient_rect(self.screen, (180, 150, 80), (160, 130, 60), title_bg)
-        title = self.font_small.render("SERVICE", True, (255, 255, 255))
+        title = self.font_small.render("🚀 SERVICE", True, (255, 255, 255))
         self.screen.blit(title, (self.service_area['x'] + 10, self.service_area['y'] - 25))
+        
+        # ⭐ Cloche de service (bell)
+        bell_x = self.service_area['x'] + self.service_area['w'] // 2
+        bell_y = self.service_area['y'] + 40
+        pygame.draw.circle(self.screen, (200, 200, 200), (bell_x, bell_y), 15)
+        pygame.draw.circle(self.screen, (220, 220, 220), (bell_x, bell_y), 12)
+        pygame.draw.rect(self.screen, (180, 180, 180), (bell_x - 10, bell_y + 10, 20, 5))
+        pygame.draw.circle(self.screen, (150, 150, 150), (bell_x, bell_y - 10), 3)
         
         self.draw_delivered_dishes(current_time)
         
@@ -353,6 +526,9 @@ class KitchenRenderer:
         deliver_text = self.font_small.render("LIVRER ICI", True, (40, 150, 40))
         text_rect = deliver_text.get_rect(center=(drop_zone_rect.centerx, drop_zone_rect.bottom + 15))
         self.screen.blit(deliver_text, text_rect)
+        
+        # ⭐ Dessiner particules d'étincelles
+        self.draw_sparkle_particles()
 
     def draw_delivered_dishes(self, current_time):
         self.delivered_dishes = [d for d in self.delivered_dishes if current_time - d['time'] < 2.0]
@@ -415,10 +591,47 @@ class KitchenRenderer:
             pygame.draw.circle(surface, (240, 60, 60, alpha), (x + offset[0], y + offset[1]), 3)
 
     def add_delivered_dish(self, order_name):
+        """Ajoute un plat livré et crée des étincelles"""
         self.delivered_dishes.append({
             'name': order_name,
             'time': time.time()
         })
+        
+        # ⭐ Créer des étincelles à la livraison
+        center_x = self.service_area['x'] + self.service_area['w'] // 2
+        center_y = self.service_area['y'] + 140
+        
+        for _ in range(20):
+            angle = (pygame.time.get_ticks() % 360) * math.pi / 180
+            speed = 2 + pygame.time.get_ticks() % 3
+            self.sparkle_particles.append({
+                'x': center_x,
+                'y': center_y,
+                'vx': math.cos(angle) * speed,
+                'vy': math.sin(angle) * speed,
+                'life': 1.0,
+                'color': (255, 215, 0)
+            })
+
+    def draw_sparkle_particles(self):
+        """⭐ NOUVEAU : Étincelles dorées à la livraison"""
+        for particle in self.sparkle_particles[:]:
+            particle['x'] += particle['vx']
+            particle['y'] += particle['vy']
+            particle['vy'] += 0.2  # Gravité
+            particle['life'] -= 0.02
+            
+            if particle['life'] <= 0:
+                self.sparkle_particles.remove(particle)
+                continue
+            
+            alpha = int(255 * particle['life'])
+            size = int(3 * particle['life'])
+            
+            if size > 0:
+                sparkle_surf = pygame.Surface((size * 2, size * 2), pygame.SRCALPHA)
+                pygame.draw.circle(sparkle_surf, (*particle['color'], alpha), (size, size), size)
+                self.screen.blit(sparkle_surf, (int(particle['x'] - size), int(particle['y'] - size)))
 
     def draw_chef_enhanced(self, bot, asset_manager):
         base_x, base_y = bot.x, bot.y
@@ -542,21 +755,28 @@ class KitchenRenderer:
         }
 
     def render_full_kitchen(self, bot_manager, asset_manager, timer):
-        """Render complet de la cuisine avec TOUS les chefs"""
+        """Render complet avec TOUS les nouveaux visuels"""
         self.draw_floor()
+        
+        # ⭐ NOUVEAUX ÉLÉMENTS DÉCORATIFS
+        self.draw_overhead_lamps()
+        self.draw_wall_decorations()
+        
         self.draw_individual_ingredient_stations(asset_manager)
         self.draw_work_station(asset_manager)
         self.draw_plating_station(asset_manager)
         self.draw_service_station()
         
-        # Animation de découpe si active
+        # ⭐ Mettre à jour et dessiner vapeur
+        self.update_steam_particles()
+        self.draw_steam_particles()
+        
         if self.cutting_animation.active:
             self.cutting_animation.update()
             self.cutting_animation.draw()
         
         if bot_manager and hasattr(bot_manager, 'bots'):
             zones = self.get_interaction_zones()
-            
             bins = {}
             if hasattr(self, 'ingredient_positions'):
                 bins = self.ingredient_positions
@@ -568,7 +788,7 @@ class KitchenRenderer:
                 self.draw_chef_status(bot)
     
     def check_delivery_trigger(self, bot):
-        """Vérifie si un bot vient de livrer et déclenche l'animation"""
+        """Vérifie si un bot vient de livrer"""
         if bot.state == "going_to_delivery" and bot.inv == "plated_dish":
             distance = ((bot.x - self.service_area['x'] - 60)**2 + 
                        (bot.y - self.service_area['y'] - 150)**2)**0.5
@@ -581,7 +801,7 @@ class KitchenRenderer:
         return False
     
     def draw_chef_status(self, bot):
-        """Affiche le statut d'UN chef en panneau compact"""
+        """Affiche le statut d'UN chef"""
         import game_state
         
         if not hasattr(game_state, 'bot_manager'):
@@ -646,282 +866,134 @@ class KitchenRenderer:
 
 
 class CuttingAnimation:
-    """Gère l'animation réaliste de découpe des ingrédients"""
+    """Animation COMPACTE de découpe"""
     
     def __init__(self, screen):
         self.screen = screen
         self.active = False
         self.ingredient = None
         self.start_time = 0
-        self.duration = 1.2
+        self.duration = 1.0
         self.particles = []
         self.board_pos = None
         
         self.ingredient_config = {
-            'tomate': {
-                'slices': 3,
-                'slice_color': (255, 107, 107),
-                'seed_color': (255, 203, 119),
-                'main_color': (230, 57, 70)
-            },
-            'laitue': {
-                'slices': 3,
-                'slice_color': (82, 183, 136),
-                'leaf_color': (149, 213, 178),
-                'main_color': (45, 106, 79)
-            },
-            'oignon': {
-                'slices': 5,
-                'slice_color': (229, 212, 193),
-                'ring_color': (248, 241, 229),
-                'main_color': (200, 182, 166)
-            },
-            'steak': {
-                'slices': 3,
-                'slice_color': (160, 82, 45),
-                'grill_color': (101, 67, 33),
-                'main_color': (139, 69, 19)
-            },
-            'pain': {
-                'slices': 2,
-                'slice_color': (244, 229, 194),
-                'crust_color': (139, 115, 85),
-                'main_color': (218, 165, 32)
-            },
-            'fromage': {
-                'slices': 1,
-                'slice_color': (255, 230, 120),
-                'hole_color': (255, 200, 50),
-                'main_color': (255, 220, 80)
-            }
+            'tomate': {'slices': 2, 'slice_color': (255, 107, 107), 'main_color': (230, 57, 70)},
+            'laitue': {'slices': 2, 'slice_color': (82, 183, 136), 'main_color': (45, 106, 79)},
+            'oignon': {'slices': 3, 'slice_color': (229, 212, 193), 'main_color': (200, 182, 166)},
+            'steak': {'slices': 2, 'slice_color': (160, 82, 45), 'main_color': (139, 69, 19)},
+            'pain': {'slices': 1, 'slice_color': (244, 229, 194), 'main_color': (218, 165, 32)},
+            'fromage': {'slices': 1, 'slice_color': (255, 230, 120), 'main_color': (255, 220, 80)}
         }
     
     def start(self, ingredient_type, board_x, board_y):
-        """Démarre l'animation de découpe"""
         if ingredient_type not in self.ingredient_config:
             return
-        
         self.active = True
         self.ingredient = ingredient_type
         self.start_time = time.time()
         self.board_pos = (board_x, board_y)
         self.particles = []
-        print(f"🔪 Découpe de {ingredient_type} commencée!")
     
     def stop(self):
-        """Arrête l'animation"""
         self.active = False
         self.ingredient = None
         self.particles = []
     
     def update(self):
-        """Met à jour l'animation"""
         if not self.active:
             return False
-        
         elapsed = time.time() - self.start_time
         progress = min(elapsed / self.duration, 1.0)
-        
-        if progress < 0.8 and len(self.particles) < 30:
-            if pygame.time.get_ticks() % 3 == 0:
+        if progress < 0.7 and len(self.particles) < 15:
+            if pygame.time.get_ticks() % 5 == 0:
                 self.create_particles()
-        
         self.update_particles()
-        
         if progress >= 1.0:
             self.stop()
             return True
-        
         return False
     
     def create_particles(self):
-        """Crée des particules de découpe"""
         if not self.board_pos:
             return
-        
         config = self.ingredient_config[self.ingredient]
         board_x, board_y = self.board_pos
-        
-        for _ in range(3):
+        for _ in range(2):
             particle = {
-                'x': board_x + (pygame.time.get_ticks() % 20 - 10),
+                'x': board_x + (pygame.time.get_ticks() % 10 - 5),
                 'y': board_y,
-                'vx': (pygame.time.get_ticks() % 8 - 4) * 0.5,
-                'vy': -(pygame.time.get_ticks() % 6 + 2),
-                'size': 2 + pygame.time.get_ticks() % 3,
+                'vx': (pygame.time.get_ticks() % 4 - 2) * 0.3,
+                'vy': -(pygame.time.get_ticks() % 3 + 1),
+                'size': 1 + pygame.time.get_ticks() % 2,
                 'color': config['slice_color'],
                 'life': 1.0
             }
             self.particles.append(particle)
     
     def update_particles(self):
-        """Met à jour la physique des particules"""
         for particle in self.particles[:]:
             particle['x'] += particle['vx']
             particle['y'] += particle['vy']
-            particle['vy'] += 0.3
-            particle['life'] -= 0.02
-            
+            particle['vy'] += 0.25
+            particle['life'] -= 0.03
             if particle['life'] <= 0:
                 self.particles.remove(particle)
     
     def draw(self):
-        """Dessine l'animation de découpe"""
         if not self.active or not self.board_pos:
             return
-        
         elapsed = time.time() - self.start_time
         progress = min(elapsed / self.duration, 1.0)
-        
         board_x, board_y = self.board_pos
         config = self.ingredient_config[self.ingredient]
-        
-        self.draw_slices(board_x, board_y, progress, config)
-        
-        if progress < 0.8:
-            self.draw_knife(board_x, board_y, progress)
-        
+        self.draw_slices_compact(board_x, board_y, progress, config)
+        if progress < 0.7:
+            self.draw_knife_compact(board_x, board_y, progress)
         self.draw_particles()
     
-    def draw_slices(self, board_x, board_y, progress, config):
-        """Dessine les tranches qui se séparent"""
+    def draw_slices_compact(self, board_x, board_y, progress, config):
         num_slices = config['slices']
-        slice_spacing = 100 / num_slices
-        separation = min(progress * 2, 1.0) * 15
-        
+        separation = min(progress * 2.5, 1.0) * 8
         for i in range(num_slices):
-            offset = (i - num_slices / 2) * slice_spacing
-            slice_x = int(board_x + offset + (i - num_slices / 2) * separation)
+            offset_x = (i - num_slices / 2) * 15
+            slice_x = int(board_x + offset_x + (i - num_slices / 2) * separation)
             slice_y = board_y
-            
-            if self.ingredient == 'tomate':
-                self.draw_tomato_slice(slice_x, slice_y, config)
-            elif self.ingredient == 'laitue':
-                self.draw_lettuce_slice(slice_x, slice_y, config)
-            elif self.ingredient == 'oignon':
-                self.draw_onion_slice(slice_x, slice_y, config)
-            elif self.ingredient == 'steak':
-                self.draw_steak_slice(slice_x, slice_y, config)
-            elif self.ingredient == 'pain':
-                self.draw_bread_slice(slice_x, slice_y, config)
-            elif self.ingredient == 'fromage':
-                self.draw_cheese_slice(slice_x, slice_y, config)
+            pygame.draw.circle(self.screen, config['main_color'], (slice_x, slice_y), 8)
+            pygame.draw.circle(self.screen, config['slice_color'], (slice_x, slice_y), 6)
+            pygame.draw.circle(self.screen, (255, 255, 255), (slice_x, slice_y), 8, 1)
     
-    def draw_tomato_slice(self, x, y, config):
-        """Dessine une tranche de tomate avec pépins"""
-        pygame.draw.circle(self.screen, config['slice_color'], (x, y), 20)
-        pygame.draw.circle(self.screen, config['main_color'], (x, y), 17)
-        
-        for i in range(6):
-            angle = (i / 6) * 2 * math.pi
-            px = x + int(math.cos(angle) * 10)
-            py = y + int(math.sin(angle) * 10)
-            pygame.draw.circle(self.screen, config['seed_color'], (px, py), 2)
-        
-        pygame.draw.circle(self.screen, (255, 200, 200), (x - 6, y - 6), 4)
-    
-    def draw_lettuce_slice(self, x, y, config):
-        """Dessine une feuille de laitue coupée"""
-        rect = pygame.Rect(x - 18, y - 22, 36, 44)
-        pygame.draw.ellipse(self.screen, config['slice_color'], rect)
-        
-        inner_rect = pygame.Rect(x - 15, y - 19, 30, 38)
-        pygame.draw.ellipse(self.screen, config['leaf_color'], inner_rect)
-        
-        pygame.draw.line(self.screen, (255, 255, 255), (x, y - 20), (x, y + 20), 2)
-    
-    def draw_onion_slice(self, x, y, config):
-        """Dessine une rondelle d'oignon avec anneaux"""
-        pygame.draw.circle(self.screen, config['ring_color'], (x, y), 20)
-        
-        for radius in [18, 14, 10, 6]:
-            pygame.draw.circle(self.screen, config['slice_color'], (x, y), radius, 2)
-        
-        for i in range(8):
-            angle = (i / 8) * 2 * math.pi
-            end_x = x + int(math.cos(angle) * 18)
-            end_y = y + int(math.sin(angle) * 18)
-            pygame.draw.line(self.screen, config['main_color'], (x, y), (end_x, end_y), 1)
-    
-    def draw_steak_slice(self, x, y, config):
-        """Dessine une tranche de steak avec marques de grill"""
-        rect = pygame.Rect(x - 20, y - 15, 40, 30)
-        pygame.draw.ellipse(self.screen, config['slice_color'], rect)
-        
-        for i in range(4):
-            y_pos = y - 12 + i * 8
-            pygame.draw.line(self.screen, config['grill_color'], 
-                           (x - 18, y_pos), (x + 18, y_pos), 3)
-    
-    def draw_bread_slice(self, x, y, config):
-        """Dessine une tranche de pain avec alvéoles"""
-        rect = pygame.Rect(x - 15, y - 20, 30, 40)
-        pygame.draw.rect(self.screen, config['crust_color'], rect)
-        
-        inner_rect = pygame.Rect(x - 12, y - 17, 24, 34)
-        pygame.draw.rect(self.screen, config['slice_color'], inner_rect)
-    
-    def draw_cheese_slice(self, x, y, config):
-        """Dessine une tranche de fromage avec trous"""
-        points = [(x - 15, y - 10), (x + 15, y - 10), 
-                 (x + 12, y + 10), (x - 12, y + 10)]
-        pygame.draw.polygon(self.screen, config['main_color'], points)
-        pygame.draw.polygon(self.screen, config['slice_color'], points, 2)
-        
-        for hole_pos in [(-6, -3), (4, 2), (-2, 5)]:
-            hx = x + hole_pos[0]
-            hy = y + hole_pos[1]
-            pygame.draw.circle(self.screen, config['hole_color'], (hx, hy), 3)
-    
-    def draw_knife(self, board_x, board_y, progress):
-        """Dessine le couteau qui coupe"""
-        knife_y = board_y - 50 + progress * 100
-        knife_x = board_x - 20
-        
-        shake = math.sin(progress * math.pi * 8) * 3
+    def draw_knife_compact(self, board_x, board_y, progress):
+        knife_y = board_y - 25 + progress * 50
+        knife_x = board_x - 10
+        shake = math.sin(progress * math.pi * 6) * 1.5
         knife_x += shake
-        
         blade_points = [
-            (knife_x, knife_y - 30),
-            (knife_x + 15, knife_y),
-            (knife_x - 3, knife_y)
+            (knife_x, knife_y - 15),
+            (knife_x + 8, knife_y),
+            (knife_x - 2, knife_y)
         ]
-        
-        shadow_points = [(p[0] + 2, p[1] + 2) for p in blade_points]
-        pygame.draw.polygon(self.screen, (100, 100, 100), shadow_points)
-        pygame.draw.polygon(self.screen, (200, 200, 200), blade_points)
-        
-        reflet_points = [
-            (knife_x + 2, knife_y - 28),
-            (knife_x + 6, knife_y - 15),
-            (knife_x + 4, knife_y - 15)
-        ]
-        pygame.draw.polygon(self.screen, (255, 255, 255), reflet_points)
-        
-        pygame.draw.line(self.screen, (150, 150, 150), 
-                        blade_points[1], blade_points[2], 2)
-        
-        handle_rect = pygame.Rect(knife_x - 5, knife_y, 10, 20)
-        pygame.draw.rect(self.screen, (70, 70, 70), handle_rect)
-        
-        inner_handle = pygame.Rect(knife_x - 4, knife_y + 1, 8, 18)
-        pygame.draw.rect(self.screen, (107, 68, 35), inner_handle)
-        
-        for rivet_y in [knife_y + 5, knife_y + 15]:
-            pygame.draw.circle(self.screen, (50, 50, 50), (knife_x, rivet_y), 2)
+        shadow_points = [(p[0] + 1, p[1] + 1) for p in blade_points]
+        pygame.draw.polygon(self.screen, (100, 100, 100, 150), shadow_points)
+        pygame.draw.polygon(self.screen, (220, 220, 220), blade_points)
+        pygame.draw.polygon(self.screen, (180, 180, 180), blade_points, 1)
+        pygame.draw.line(self.screen, (255, 255, 255), 
+                        (knife_x + 1, knife_y - 13), 
+                        (knife_x + 3, knife_y - 8), 1)
+        handle_rect = pygame.Rect(knife_x - 3, knife_y, 6, 12)
+        pygame.draw.rect(self.screen, (107, 68, 35), handle_rect)
+        pygame.draw.rect(self.screen, (70, 70, 70), handle_rect, 1)
     
     def draw_particles(self):
-        """Dessine les particules volantes"""
         for particle in self.particles:
-            alpha = int(255 * particle['life'])
-            color = (*particle['color'], alpha)
-            
-            particle_surf = pygame.Surface((particle['size'] * 2, particle['size'] * 2), 
-                                          pygame.SRCALPHA)
-            pygame.draw.circle(particle_surf, color, 
-                             (particle['size'], particle['size']), 
-                             particle['size'])
-            
-            self.screen.blit(particle_surf, 
-                           (int(particle['x'] - particle['size']), 
-                            int(particle['y'] - particle['size'])))
+            alpha = int(200 * particle['life'])
+            color = (*particle['color'][:3], alpha)
+            if particle['size'] > 0:
+                particle_surf = pygame.Surface((particle['size'] * 2 + 2, particle['size'] * 2 + 2), 
+                                              pygame.SRCALPHA)
+                pygame.draw.circle(particle_surf, color, 
+                                 (particle['size'] + 1, particle['size'] + 1), 
+                                 particle['size'])
+                self.screen.blit(particle_surf, 
+                               (int(particle['x'] - particle['size']), 
+                                int(particle['y'] - particle['size'])))
