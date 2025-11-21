@@ -1,7 +1,6 @@
 """
-Bot avec Architecture BDI (Belief-Desire-Intention)
-Application des concepts du cours BDI Agents
-VERSION CORRIGÉE - Affichage cuisine pendant assemblage
+Bot avec Architecture BDI + ÉMOTIONS & STRESS
+Nouvelle version avec système émotionnel et cuisson réelle
 """
 import time
 import math
@@ -17,6 +16,16 @@ class BeliefType(Enum):
     SELF = "self"
     OTHER_AGENTS = "other_agents"
     CAPABILITY = "capability"
+
+
+class EmotionType(Enum):
+    """Types d'émotions"""
+    CALM = "calm"           # 😌 Calme
+    FOCUSED = "focused"     # 🎯 Concentré
+    STRESSED = "stressed"   # 😰 Stressé
+    PANICKED = "panicked"   # 😱 Paniqué
+    HAPPY = "happy"         # 😊 Heureux
+    FRUSTRATED = "frustrated"  # 😤 Frustré
 
 
 @dataclass
@@ -82,8 +91,7 @@ class Action:
 
 class BDIBot:
     """
-    Agent BDI complet selon le cours
-    Implémente le cycle: Perceive → Believe → Desire → Intend → Act
+    Agent BDI avec ÉMOTIONS et STRESS
     """
     
     def __init__(self, x=350, y=400, chef_name="Chef", color_variant=0):
@@ -104,8 +112,22 @@ class BDIBot:
         self.intentions: List[Intention] = []
         self.current_intention: Optional[Intention] = None
         
+        # 😊 SYSTÈME ÉMOTIONNEL
+        self.stress_level = 0.0
+        self.current_emotion = EmotionType.CALM
+        self.emotion_duration = 0.0
+        self.last_success_time = time.time()
+        self.consecutive_failures = 0
+        self.workload = 0
+        
+        # Seuils émotionnels
+        self.STRESS_THRESHOLD_FOCUSED = 0.3
+        self.STRESS_THRESHOLD_STRESSED = 0.6
+        self.STRESS_THRESHOLD_PANICKED = 0.85
+        
         # Capacités physiques
-        self.BOT_SPEED = 3 + (color_variant * 0.5)
+        self.base_speed = 3 + (color_variant * 0.5)
+        self.BOT_SPEED = self.base_speed
         self.inv = None
         self.animation_time = 0
         
@@ -118,27 +140,41 @@ class BDIBot:
         self.competitiveness = 0.5 + (color_variant * 0.3)
         
         # Durées des actions
-        self.prep_times = {
+        self.base_prep_times = {
             "laitue": 1.0,
             "tomate": 1.2,
             "pain": 0.8,
-            "steak": 0.0,  # ⭐ Pas de découpe, juste cuisson
-            "fromage": 0.5
+            "steak": 0.0,
+            "fromage": 0.5,
+            "oignon": 1.5
+        }
+        self.prep_times = self.base_prep_times.copy()
+        
+        # 🔥 SYSTÈME DE CUISSON
+        self.base_cook_times = {
+            "steak": 3.0
+        }
+        self.cook_times = self.base_cook_times.copy()
+        self.cook_states = {
+            "raw": 0.0,
+            "rare": 0.25,
+            "medium": 0.50,
+            "welldone": 0.75,
+            "burnt": 1.2
         }
         
-        # ⭐ NOUVEAU : Durées de cuisson
-        self.cook_times = {
-            "steak": 3.0  # 3 secondes de cuisson
-        }
+        # Variables de cuisson
+        self._is_cooking = None
+        self.cooking_start_time = 0
+        self.cooking_progress = 0.0
         
-        # ⭐ CORRECTION: Variables pour compatibilité renderer
+        # Variables pour compatibilité renderer
         self.PLATING_TIME = 2.0
-        self.prep_time = 0  # Timer pour préparation
-        self.cook_time = 0  # ⭐ Timer pour cuisson
-        self.plate_time = 0  # Timer pour assemblage
-        self._is_preparing = None  # Ingrédient en cours de préparation
-        self._is_cooking = None  # ⭐ Ingrédient en cours de cuisson
-        self._is_plating = False  # Est en train d'assembler
+        self.prep_time = 0
+        self.cook_time = 0
+        self.plate_time = 0
+        self._is_preparing = None
+        self._is_plating = False
         
         # Visuels
         color_variants = [
@@ -164,11 +200,148 @@ class BDIBot:
         # État pour l'exécution d'actions
         self.action_start_time = 0
         self.current_action = None
+        
+        # Animation tremblements
+        self.shake_offset_x = 0
+        self.shake_offset_y = 0
+
+    # ==================== SYSTÈME ÉMOTIONNEL ====================
+    
+    def update_stress(self):
+        """Met à jour le niveau de stress selon la situation"""
+        current_time = time.time()
+        stress_factors = 0.0
+        
+        # 1. Charge de travail
+        if hasattr(game_state, 'order_manager'):
+            my_order = game_state.order_manager.get_chef_order(self.bot_id)
+            if my_order:
+                progress = game_state.order_manager.get_chef_progress(self.bot_id)
+                if progress:
+                    total = len(my_order['order_data']['ingredients'])
+                    remaining = len(progress['ingredients_needed'])
+                    stress_factors += (remaining / max(1, total)) * 0.3
+            
+            available = len(game_state.order_manager.available_orders)
+            stress_factors += min(available / 5, 0.3)
+        
+        # 2. Échecs consécutifs
+        stress_factors += min(self.consecutive_failures * 0.1, 0.2)
+        
+        # 3. Temps depuis dernier succès
+        time_since_success = current_time - self.last_success_time
+        if time_since_success > 30:
+            stress_factors += min((time_since_success - 30) / 60, 0.2)
+        
+        # 4. Action bloquée
+        if self.current_intention:
+            elapsed = current_time - self.current_intention.start_time
+            if elapsed > 8:
+                stress_factors += 0.3
+        
+        # Mise à jour progressive
+        target_stress = min(stress_factors, 1.0)
+        
+        if target_stress > self.stress_level:
+            self.stress_level = min(1.0, self.stress_level + 0.02)
+        else:
+            self.stress_level = max(0.0, self.stress_level - 0.01)
+        
+        # Relaxation rapide après succès
+        if time_since_success < 5:
+            self.stress_level *= 0.95
+    
+    def update_emotion(self):
+        """Détermine l'émotion selon le stress"""
+        old_emotion = self.current_emotion
+        
+        if self.stress_level < self.STRESS_THRESHOLD_FOCUSED:
+            self.current_emotion = EmotionType.CALM
+        elif self.stress_level < self.STRESS_THRESHOLD_STRESSED:
+            self.current_emotion = EmotionType.FOCUSED
+        elif self.stress_level < self.STRESS_THRESHOLD_PANICKED:
+            self.current_emotion = EmotionType.STRESSED
+        else:
+            self.current_emotion = EmotionType.PANICKED
+        
+        if time.time() - self.last_success_time < 2:
+            self.current_emotion = EmotionType.HAPPY
+        
+        if self.consecutive_failures >= 3:
+            self.current_emotion = EmotionType.FRUSTRATED
+        
+        if old_emotion != self.current_emotion:
+            emoji = self.get_emotion_emoji()
+            print(f"{emoji} {self.chef_name} ressent: {self.current_emotion.value}")
+            self.emotion_duration = 0
+        else:
+            self.emotion_duration += 0.04
+    
+    def apply_stress_effects(self):
+        """Applique les effets du stress"""
+        if self.current_emotion == EmotionType.PANICKED:
+            self.BOT_SPEED = self.base_speed * 0.6
+        elif self.current_emotion == EmotionType.STRESSED:
+            self.BOT_SPEED = self.base_speed * 0.85
+        elif self.current_emotion == EmotionType.FOCUSED:
+            self.BOT_SPEED = self.base_speed * 1.15
+        else:
+            self.BOT_SPEED = self.base_speed
+        
+        stress_multiplier = 1.0 + (self.stress_level * 0.5)
+        for ing in self.base_prep_times:
+            self.prep_times[ing] = self.base_prep_times[ing] * stress_multiplier
+        
+        for ing in self.base_cook_times:
+            self.cook_times[ing] = self.base_cook_times[ing] * stress_multiplier
+        
+        if self.stress_level > 0.4:
+            shake_intensity = (self.stress_level - 0.4) * 5
+            self.shake_offset_x = math.sin(time.time() * 15) * shake_intensity
+            self.shake_offset_y = math.cos(time.time() * 20) * shake_intensity
+        else:
+            self.shake_offset_x = 0
+            self.shake_offset_y = 0
+    
+    def get_emotion_emoji(self) -> str:
+        """Retourne l'emoji correspondant à l'émotion"""
+        emojis = {
+            EmotionType.CALM: "😌",
+            EmotionType.FOCUSED: "🎯",
+            EmotionType.STRESSED: "😰",
+            EmotionType.PANICKED: "😱",
+            EmotionType.HAPPY: "😊",
+            EmotionType.FRUSTRATED: "😤"
+        }
+        return emojis.get(self.current_emotion, "😐")
+    
+    def get_emotion_color(self):
+        """Couleur selon l'émotion"""
+        colors = {
+            EmotionType.CALM: (100, 200, 255),
+            EmotionType.FOCUSED: (100, 255, 100),
+            EmotionType.STRESSED: (255, 200, 100),
+            EmotionType.PANICKED: (255, 100, 100),
+            EmotionType.HAPPY: (255, 255, 100),
+            EmotionType.FRUSTRATED: (200, 100, 200)
+        }
+        return colors.get(self.current_emotion, (200, 200, 200))
+    
+    def on_success(self):
+        """Appelé lors d'un succès"""
+        self.last_success_time = time.time()
+        self.consecutive_failures = 0
+        self.stress_level = max(0, self.stress_level - 0.2)
+    
+    def on_failure(self):
+        """Appelé lors d'un échec"""
+        self.consecutive_failures += 1
+        self.stress_level = min(1.0, self.stress_level + 0.15)
 
     # ==================== PHASE 1: PERCEPTION ====================
     
     def perceive_world(self):
-        """PERCEIVE: Observer le monde et mettre à jour les croyances"""
+        """PERCEIVE: Observer le monde"""
         current_time = time.time()
         
         self.update_belief(BeliefType.SELF, "position",
@@ -180,6 +353,12 @@ class BDIBot:
         if self.inv:
             self.update_belief(BeliefType.SELF, "carrying",
                 f"holding_{self.inv}", 1.0)
+        
+        self.update_belief(BeliefType.SELF, "stress_level",
+            f"stress_{int(self.stress_level * 100)}", 1.0)
+        
+        self.update_belief(BeliefType.SELF, "emotion",
+            f"feeling_{self.current_emotion.value}", 1.0)
         
         if hasattr(game_state, 'order_manager'):
             my_order = game_state.order_manager.get_chef_order(self.bot_id)
@@ -225,12 +404,12 @@ class BDIBot:
     # ==================== PHASE 2: DELIBERATION ====================
     
     def deliberate(self):
-        """DELIBERATION: Générer des options (desires) et filtrer"""
+        """DELIBERATION: Générer des options"""
         options = self.generate_options()
         self.desires = self.filter_options(options)
     
     def generate_options(self) -> List[Desire]:
-        """Option Generation: Génère tous les désirs possibles"""
+        """Génère tous les désirs possibles"""
         options = []
         
         my_order = None
@@ -245,9 +424,13 @@ class BDIBot:
         
         # Option 1: Prendre une nouvelle commande
         if not my_order and available_count > 0:
+            priority = 0.9
+            if self.current_emotion == EmotionType.PANICKED:
+                priority *= 0.7
+            
             options.append(Desire(
                 goal="claim_order",
-                priority=0.9,
+                priority=priority,
                 preconditions=["environment_orders_available"],
                 effects=["environment_has_order"]
             ))
@@ -256,28 +439,47 @@ class BDIBot:
         if my_order and not self.inv:
             if progress and progress['ingredients_needed']:
                 needed = progress['ingredients_needed'][0]
+                
+                priority = 0.8
+                if self.current_emotion == EmotionType.STRESSED:
+                    priority *= 1.2
+                
                 options.append(Desire(
                     goal=f"obtain_ingredient_{needed}",
-                    priority=0.8,
+                    priority=priority,
                     preconditions=["environment_has_order"],
                     effects=[f"self_carrying_holding_{needed}"]
                 ))
         
-        # Option 3: Préparer l'ingrédient en main
-        if self.inv and self.inv != "plated_dish":
-            options.append(Desire(
-                goal=f"prepare_ingredient_{self.inv}",
-                priority=0.85,
-                preconditions=[f"self_carrying_holding_{self.inv}"],
-                effects=["ingredient_prepared"]
-            ))
+        # Option 3: Préparer/cuire l'ingrédient
+        if self.inv and self.inv != "plated_dish" and not self._is_cooking:
+            needs_cooking = self.inv in self.cook_times
+            
+            if needs_cooking:
+                options.append(Desire(
+                    goal=f"cook_ingredient_{self.inv}",
+                    priority=0.90,
+                    preconditions=[f"self_carrying_holding_{self.inv}"],
+                    effects=["ingredient_cooked"]
+                ))
+            else:
+                options.append(Desire(
+                    goal=f"prepare_ingredient_{self.inv}",
+                    priority=0.85,
+                    preconditions=[f"self_carrying_holding_{self.inv}"],
+                    effects=["ingredient_prepared"]
+                ))
         
         # Option 4: Assembler le plat
         if my_order and not self.inv:
             if progress and progress['is_ready']:
+                priority = 0.95
+                if self.current_emotion == EmotionType.HAPPY:
+                    priority = 1.0
+                
                 options.append(Desire(
                     goal="assemble_dish",
-                    priority=0.95,
+                    priority=priority,
                     preconditions=["all_ingredients_ready"],
                     effects=["self_carrying_holding_plated_dish"]
                 ))
@@ -294,7 +496,7 @@ class BDIBot:
         return options
     
     def filter_options(self, options: List[Desire]) -> List[Desire]:
-        """Filter: Sélectionne les désirs réalisables et non-conflictuels"""
+        """Filter: Sélectionne les désirs réalisables"""
         filtered = []
         
         for desire in options:
@@ -308,7 +510,7 @@ class BDIBot:
         return filtered
     
     def conflicts_with_intentions(self, desire: Desire) -> bool:
-        """Vérifie si un désir entre en conflit avec les intentions actuelles"""
+        """Vérifie les conflits"""
         if not self.current_intention:
             return False
         
@@ -323,10 +525,72 @@ class BDIBot:
         
         return False
 
+    # ==================== CYCLE BDI PRINCIPAL ====================
+    
+    def update(self, dt=0):
+        """Cycle BDI complet"""
+        # Système émotionnel
+        self.update_stress()
+        self.update_emotion()
+        self.apply_stress_effects()
+        
+        # 1. PERCEIVE
+        self.perceive_world()
+        
+        # 2 & 3. DELIBERATE
+        self.deliberate()
+        
+        # Détection de blocage
+        if self.current_intention:
+            elapsed = time.time() - self.current_intention.start_time
+            
+            timeout = 5.0
+            if self.current_intention.plan:
+                action_name = self.current_intention.plan[0].name
+                if action_name in ["cut_ingredient"]:
+                    timeout = 8.0
+                elif action_name == "cook_ingredient":
+                    timeout = 10.0
+                elif action_name == "plate_dish":
+                    timeout = 8.0
+                elif action_name == "move_to":
+                    timeout = 10.0
+            
+            if elapsed > timeout:
+                print(f"⚠️ {self.chef_name}: Intention bloquée - ABANDON!")
+                self.current_intention = None
+                self.action_start_time = 0
+                self.current_action = None
+                self._is_preparing = None
+                self._is_cooking = None
+                self._is_plating = False
+                self.on_failure()
+        
+        # 4. INTEND
+        if not self.current_intention and self.desires:
+            best_desire = self.desires[0]
+            plan = self.means_ends_reasoning(best_desire)
+            
+            if plan:
+                self.current_intention = Intention(
+                    desire=best_desire,
+                    plan=plan,
+                    start_time=time.time(),
+                    committed=True
+                )
+                emoji = self.get_emotion_emoji()
+                print(f"{emoji} {self.chef_name} s'engage: {best_desire.goal}")
+        
+        # 5. EXECUTE
+        self.execute()
+        
+        self.animation_time += dt if dt > 0 else 0.04
+        self.update_movement()
+
     # ==================== PHASE 3: MEANS-ENDS REASONING ====================
     
     def means_ends_reasoning(self, desire: Desire) -> List[Action]:
-        """PLANNING: Génère un plan pour réaliser un désir"""
+        """PLANNING: Génère un plan"""
         plan = []
         
         if desire.goal == "claim_order":
@@ -363,6 +627,28 @@ class BDIBot:
                 delete_list=["hands_empty"],
                 add_list=[f"self_carrying_holding_{ingredient}"],
                 duration=0.5
+            ))
+        
+        elif desire.goal.startswith("cook_ingredient_"):
+            ingredient = desire.goal.replace("cook_ingredient_", "")
+            target = self.interaction_zones.get('cooking_area', (430, 330))
+            
+            plan.append(Action(
+                name="move_to",
+                parameters={"target": target, "reason": "cook"},
+                preconditions=[],
+                delete_list=[],
+                add_list=["at_cooking_area"],
+                duration=1.5
+            ))
+            
+            plan.append(Action(
+                name="cook_ingredient",
+                parameters={"ingredient": ingredient},
+                preconditions=["at_cooking_area"],
+                delete_list=[f"self_carrying_holding_{ingredient}"],
+                add_list=["ingredient_cooked"],
+                duration=self.cook_times.get(ingredient, 3.0)
             ))
         
         elif desire.goal.startswith("prepare_ingredient_"):
@@ -441,23 +727,24 @@ class BDIBot:
         if self.current_intention.is_completed():
             print(f"✅ {self.chef_name}: Intention '{self.current_intention.desire.goal}' accomplie!")
             self.current_intention = None
+            self.on_success()
             return
         
         action = self.current_intention.plan[0]
         
         if not hasattr(self, '_last_action_log') or self._last_action_log != action.name:
-            print(f"▶️ {self.chef_name} exécute: {action.name} {action.parameters}")
+            emoji = self.get_emotion_emoji()
+            print(f"{emoji} {self.chef_name} exécute: {action.name}")
             self._last_action_log = action.name
         
         if self.execute_action(action):
-            print(f"   ✅ {action.name} terminée!")
             self.current_intention.plan.pop(0)
             self.action_start_time = 0
             self.current_action = None
             self._last_action_log = None
     
     def execute_action(self, action: Action) -> bool:
-        """Exécute une action atomique et retourne True si terminée"""
+        """Exécute une action atomique"""
         
         if action.name == "try_claim_order":
             if hasattr(game_state, 'order_manager'):
@@ -466,6 +753,7 @@ class BDIBot:
                     return True
                 
                 if len(game_state.order_manager.available_orders) == 0:
+                    self.on_failure()
                     return False
                 
                 order_info = game_state.order_manager.assign_order_to_chef(
@@ -473,8 +761,10 @@ class BDIBot:
                 )
                 if order_info:
                     print(f"🎯 {self.chef_name} a pris: {order_info['order_data']['name']}")
+                    self.on_success()
                     return True
                 else:
+                    self.on_failure()
                     return False
             return False
         
@@ -510,15 +800,57 @@ class BDIBot:
             else:
                 return True
         
+        elif action.name == "cook_ingredient":
+            ingredient = action.parameters.get("ingredient")
+            
+            if self.action_start_time == 0:
+                self.action_start_time = time.time()
+                self.cooking_start_time = time.time()
+                self.current_action = action
+                self.cook_time = time.time()
+                self._is_cooking = ingredient
+                self.cooking_progress = 0.0
+                print(f"🔥 {self.chef_name} commence à cuire: {ingredient}")
+                return False
+            
+            # Calculer la progression
+            elapsed = time.time() - self.action_start_time
+            duration = self.cook_times.get(ingredient, 3.0)
+            self.cooking_progress = elapsed / duration
+            
+            # Vérifier l'état de cuisson
+            if self.cooking_progress >= 1.2:
+                # BRÛLÉ !
+                print(f"🔥💀 {self.chef_name} a BRÛLÉ le {ingredient}!")
+                self.inv = None
+                self._is_cooking = None
+                self.cooking_progress = 0.0
+                self.on_failure()
+                if hasattr(game_state, 'order_manager'):
+                    game_state.order_manager.remove_chef_order(self.bot_id)
+                return True
+            
+            # Cuisson parfaite entre 75% et 110%
+            if 0.75 <= self.cooking_progress <= 1.1:
+                if hasattr(game_state, 'order_manager'):
+                    game_state.order_manager.add_ingredient_to_chef(self.bot_id, ingredient)
+                self.inv = None
+                self._is_cooking = None
+                self.cooking_progress = 0.0
+                print(f"✅ {self.chef_name} a cuit parfaitement: {ingredient}")
+                self.on_success()
+                return True
+            
+            return False
+        
         elif action.name == "cut_ingredient":
             ingredient = action.parameters.get("ingredient")
             
-            # ⭐ CORRECTION: Mettre à jour _is_preparing pour le renderer
             if self.action_start_time == 0:
                 self.action_start_time = time.time()
                 self.current_action = action
-                self.prep_time = time.time()  # Pour le renderer
-                self._is_preparing = ingredient  # Pour le renderer
+                self.prep_time = time.time()
+                self._is_preparing = ingredient
                 print(f"🔪 {self.chef_name} commence à préparer: {ingredient}")
                 return False
             
@@ -527,8 +859,9 @@ class BDIBot:
                 if hasattr(game_state, 'order_manager'):
                     game_state.order_manager.add_ingredient_to_chef(self.bot_id, ingredient)
                 self.inv = None
-                self._is_preparing = None  # Réinitialiser
+                self._is_preparing = None
                 print(f"✅ {self.chef_name} a préparé: {ingredient}")
+                self.on_success()
                 return True
             
             return False
@@ -542,12 +875,11 @@ class BDIBot:
                 if not progress or not progress['is_ready']:
                     return False
             
-            # ⭐ CORRECTION: Mettre à jour _is_plating pour le renderer
             if self.action_start_time == 0:
                 self.action_start_time = time.time()
                 self.current_action = action
-                self.plate_time = time.time()  # Pour le renderer
-                self._is_plating = True  # Pour le renderer
+                self.plate_time = time.time()
+                self._is_plating = True
                 print(f"🍽️ {self.chef_name} commence à assembler le plat...")
                 return False
             
@@ -559,8 +891,9 @@ class BDIBot:
             if hasattr(game_state, 'order_manager'):
                 game_state.order_manager.set_chef_plated(self.bot_id, True)
             self.inv = "plated_dish"
-            self._is_plating = False  # Réinitialiser
-            print(f"✅ {self.chef_name} a assemblé le plat en {elapsed:.1f}s!")
+            self._is_plating = False
+            print(f"✅ {self.chef_name} a assemblé le plat!")
+            self.on_success()
             return True
         
         elif action.name == "deliver":
@@ -568,62 +901,11 @@ class BDIBot:
                 score = game_state.bot_manager.complete_order(self)
                 print(f"🚀 {self.chef_name} a livré! (+{score} points)")
                 self.inv = None
+                self.on_success()
                 return True
             return False
         
         return False
-
-    # ==================== CYCLE BDI PRINCIPAL ====================
-    
-    def update(self, dt=0):
-        """Cycle BDI complet: Perceive → Believe → Desire → Intend → Act"""
-        # 1. PERCEIVE
-        self.perceive_world()
-        
-        # 2 & 3. DELIBERATE
-        self.deliberate()
-        
-        # 🔧 DÉTECTION DE BLOCAGE
-        if self.current_intention:
-            elapsed = time.time() - self.current_intention.start_time
-            
-            timeout = 5.0
-            if self.current_intention.plan:
-                action_name = self.current_intention.plan[0].name
-                if action_name in ["cut_ingredient"]:
-                    timeout = 6.0
-                elif action_name == "plate_dish":
-                    timeout = 8.0
-                elif action_name == "move_to":
-                    timeout = 10.0
-            
-            if elapsed > timeout:
-                print(f"⚠️ {self.chef_name}: Intention bloquée depuis {elapsed:.1f}s - ABANDON!")
-                self.current_intention = None
-                self.action_start_time = 0
-                self.current_action = None
-                self._is_preparing = None
-                self._is_plating = False
-        
-        # 4. INTEND
-        if not self.current_intention and self.desires:
-            best_desire = self.desires[0]
-            plan = self.means_ends_reasoning(best_desire)
-            
-            if plan:
-                self.current_intention = Intention(
-                    desire=best_desire,
-                    plan=plan,
-                    start_time=time.time(),
-                    committed=True
-                )
-                print(f"🎯 {self.chef_name} s'engage: {best_desire.goal}")
-        
-        # 5. EXECUTE
-        self.execute()
-        
-        self.animation_time += dt if dt > 0 else 0.04
-        self.update_movement()
 
     # ==================== MÉTHODES AUXILIAIRES ====================
     
@@ -659,7 +941,9 @@ class BDIBot:
         self.ingredient_bins = bins
     
     def get_state_text(self) -> str:
-        """Retourne le texte d'état pour l'affichage"""
+        """Retourne le texte d'état avec émotion"""
+        emoji = self.get_emotion_emoji()
+        
         if self.current_intention:
             if self.current_intention.plan:
                 current_action_obj = self.current_intention.plan[0]
@@ -667,65 +951,86 @@ class BDIBot:
                 
                 if "move" in current_action:
                     reason = current_action_obj.parameters.get("reason", "")
-                    return f"🚶 Se déplace ({reason[:10]})"
+                    return f"{emoji} Se déplace ({reason[:10]})"
                 elif "pick" in current_action:
                     ing = current_action_obj.parameters.get("ingredient", "?")
-                    return f"📦 Prend {ing}"
+                    return f"{emoji} Prend {ing}"
+                elif "cook" in current_action:
+                    ing = current_action_obj.parameters.get("ingredient", "?")
+                    if self.action_start_time > 0:
+                        progress = int(self.cooking_progress * 100)
+                        
+                        if progress < 25:
+                            status = "🥩 Cru"
+                        elif progress < 50:
+                            status = "🍖 Saignant"
+                        elif progress < 75:
+                            status = "🥩 À point"
+                        elif progress < 100:
+                            status = "🍖 Bien cuit"
+                        elif progress < 120:
+                            status = "⚠️ Risque!"
+                        else:
+                            status = "🔥 BRÛLE!"
+                        
+                        return f"{emoji} Cuit {ing} {progress}% {status}"
+                    return f"{emoji} Va cuire {ing}"
                 elif "cut" in current_action:
                     ing = current_action_obj.parameters.get("ingredient", "?")
                     if self.action_start_time > 0:
                         elapsed = time.time() - self.action_start_time
                         duration = self.prep_times.get(ing, 1.5)
                         progress = min(100, int((elapsed / duration) * 100))
-                        return f"🔪 Coupe {ing} ({progress}%)"
-                    return f"🔪 Va couper {ing}"
+                        return f"{emoji} Coupe {ing} ({progress}%)"
+                    return f"{emoji} Va couper {ing}"
                 elif "plate" in current_action:
                     if self.action_start_time > 0:
                         elapsed = time.time() - self.action_start_time
                         progress = min(100, int((elapsed / self.PLATING_TIME) * 100))
-                        return f"🍽️ Assemble ({progress}%)"
-                    return f"🍽️ Va assembler"
+                        return f"{emoji} Assemble ({progress}%)"
+                    return f"{emoji} Va assembler"
                 elif "deliver" in current_action:
-                    return "🚀 Livre"
+                    return f"{emoji} Livre"
                 elif "claim" in current_action:
-                    return "🎯 Prend commande"
+                    return f"{emoji} Prend commande"
             
             goal = self.current_intention.desire.goal
             if "claim" in goal:
-                return "🎯 Prend commande"
+                return f"{emoji} Prend commande"
             elif "obtain" in goal:
                 ing = goal.replace("obtain_ingredient_", "")
-                return f"📦 Cherche {ing}"
+                return f"{emoji} Cherche {ing}"
+            elif "cook" in goal:
+                ing = goal.replace("cook_ingredient_", "")
+                return f"{emoji} Cuit {ing}"
             elif "prepare" in goal:
                 ing = goal.replace("prepare_ingredient_", "")
-                return f"🔪 Prépare {ing}"
+                return f"{emoji} Prépare {ing}"
             elif "assemble" in goal:
-                return "🍽️ Assemble"
+                return f"{emoji} Assemble"
             elif "deliver" in goal:
-                return "🚀 Livre"
-            return f"🎯 {goal[:15]}"
+                return f"{emoji} Livre"
+            return f"{emoji} {goal[:15]}"
         elif self.desires:
-            return f"💭 {len(self.desires)} options"
-        return "🤔 Réfléchit..."
+            return f"{emoji} {len(self.desires)} options"
+        return f"{emoji} Réfléchit..."
     
     def get_state_color(self):
-        """Retourne la couleur selon l'état"""
-        if self.current_intention:
-            goal = self.current_intention.desire.goal
-            if "deliver" in goal:
-                return (100, 255, 100)
-            elif "claim" in goal:
-                return (255, 215, 0)
-            elif "prepare" in goal:
-                return (255, 100, 100)
-            else:
-                return (255, 165, 0)
-        return (200, 200, 200)
+        """Retourne la couleur selon l'émotion"""
+        return self.get_emotion_color()
+    
+    def get_stress_bar_info(self):
+        """Informations pour afficher la barre de stress"""
+        return {
+            'level': self.stress_level,
+            'color': self.get_emotion_color(),
+            'emoji': self.get_emotion_emoji()
+        }
     
     # ==================== COMPATIBILITÉ AVEC BOT MANAGER ====================
     
     def is_available(self) -> bool:
-        """Vérifie si le bot est disponible pour prendre une commande"""
+        """Vérifie si le bot est disponible"""
         if not self.current_intention:
             return True
         
@@ -736,7 +1041,7 @@ class BDIBot:
     
     @property
     def state(self) -> str:
-        """Property pour compatibilité - État basé sur l'intention BDI"""
+        """Property pour compatibilité"""
         if not self.current_intention:
             return "idle"
         
@@ -746,8 +1051,11 @@ class BDIBot:
             return "claiming_order"
         elif "obtain" in goal:
             return "going_to_fridge"
+        elif "cook" in goal:
+            if self._is_cooking:
+                return "cooking"
+            return "going_to_cooking"
         elif "prepare" in goal:
-            # ⭐ CORRECTION: Retourner "cutting" pendant la préparation
             if self._is_preparing:
                 return "cutting"
             return "going_to_board"
@@ -774,13 +1082,23 @@ class BDIBot:
         self._is_preparing = value
     
     @property
+    def cooking(self):
+        """Property pour savoir si en train de cuire"""
+        return self._is_cooking
+    
+    @cooking.setter
+    def cooking(self, value):
+        """Setter pour compatibilité"""
+        self._is_cooking = value
+    
+    @property
     def plating(self) -> bool:
-        """Property pour compatibilité - indique si en train d'assembler"""
+        """Property pour compatibilité"""
         return self._is_plating
     
     @property
     def plating_progress(self) -> float:
-        """Retourne la progression de l'assemblage (0.0 à 1.0)"""
+        """Retourne la progression de l'assemblage"""
         if self._is_plating and self.action_start_time > 0:
             elapsed = time.time() - self.action_start_time
             return min(1.0, elapsed / self.PLATING_TIME)
@@ -792,20 +1110,114 @@ class BDIBot:
         self._is_plating = value
     
     def draw_chef(self, screen):
-        """Dessine le chef"""
-        import pygame
+  
+     import pygame
+    
+     draw_x = self.x + self.shake_offset_x
+     draw_y = self.y + self.shake_offset_y
+    
+     # ============ PIEDS ============
+     pygame.draw.ellipse(screen, (0, 0, 0), (draw_x - 8, draw_y + 12, 6, 5))
+     pygame.draw.ellipse(screen, (0, 0, 0), (draw_x + 2, draw_y + 12, 6, 5))
+    
+     # ============ PANTALON ============
+     pants_rect = pygame.Rect(draw_x - 10, draw_y, 20, 12)
+     pygame.draw.rect(screen, self.chef_pants_color, pants_rect)
+     pygame.draw.rect(screen, (50, 50, 50), pants_rect, 1)
+    
+     # Ceinture
+     pygame.draw.line(screen, (100, 100, 100), (draw_x - 10, draw_y + 12), (draw_x + 10, draw_y + 12), 2)
+    
+     # ============ CORPS (VESTE) ============
+     body_rect = pygame.Rect(draw_x - 12, draw_y - 15, 24, 15)
+     pygame.draw.rect(screen, self.chef_body_color, body_rect)
+     pygame.draw.rect(screen, (200, 200, 200), body_rect, 2)
+    
+     # Boutons
+     pygame.draw.circle(screen, (255, 215, 0), (int(draw_x - 2), int(draw_y - 10)), 1)
+     pygame.draw.circle(screen, (255, 215, 0), (int(draw_x - 2), int(draw_y - 5)), 1)
+     pygame.draw.circle(screen, (255, 215, 0), (int(draw_x + 2), int(draw_y - 10)), 1)
+     pygame.draw.circle(screen, (255, 215, 0), (int(draw_x + 2), int(draw_y - 5)), 1)
+    
+     # ============ BRAS GAUCHE ============
+     pygame.draw.line(screen, self.chef_skin_color, (draw_x - 12, draw_y - 10), (draw_x - 18, draw_y - 5), 3)
+     pygame.draw.circle(screen, self.chef_skin_color, (int(draw_x - 18), int(draw_y - 5)), 4)
+    
+     # ============ BRAS DROIT ============
+     pygame.draw.line(screen, self.chef_skin_color, (draw_x + 12, draw_y - 10), (draw_x + 18, draw_y - 5), 3)
+     pygame.draw.circle(screen, self.chef_skin_color, (int(draw_x + 18), int(draw_y - 5)), 4)
+    
+     # ============ COU ============
+     neck_rect = pygame.Rect(draw_x - 4, draw_y - 20, 8, 5)
+     pygame.draw.rect(screen, self.chef_skin_color, neck_rect)
+    
+     # ============ TÊTE ============
+     pygame.draw.circle(screen, self.chef_skin_color, (int(draw_x), int(draw_y - 28)), 10)
+     pygame.draw.circle(screen, (200, 150, 120), (int(draw_x), int(draw_y - 28)), 10, 1)
+    
+     # Yeux
+     pygame.draw.circle(screen, (0, 0, 0), (int(draw_x - 4), int(draw_y - 30)), 2)
+     pygame.draw.circle(screen, (0, 0, 0), (int(draw_x + 4), int(draw_y - 30)), 2)
+     pygame.draw.circle(screen, (255, 255, 255), (int(draw_x - 3), int(draw_y - 31)), 1)
+     pygame.draw.circle(screen, (255, 255, 255), (int(draw_x + 5), int(draw_y - 31)), 1)
+    
+     # Nez
+     pygame.draw.polygon(screen, (180, 120, 90), 
+                       [(draw_x, draw_y - 27), 
+                        (draw_x - 1, draw_y - 25), 
+                        (draw_x + 1, draw_y - 25)])
+    
+     # Bouche (sourire selon émotion)
+     emotion = self.current_emotion.value if hasattr(self, 'current_emotion') else 'calm'
+     if emotion == 'happy':
+        pygame.draw.arc(screen, (0, 0, 0), (draw_x - 3, draw_y - 23, 6, 4), 0, 3.14, 2)
+     elif emotion in ['stressed', 'panicked']:
+        pygame.draw.line(screen, (0, 0, 0), (draw_x - 2, draw_y - 22), (draw_x + 2, draw_y - 22), 1)
+     else:
+        pygame.draw.line(screen, (0, 0, 0), (draw_x - 2, draw_y - 22), (draw_x + 2, draw_y - 22), 1)
+    
+     # ============ TOQUE (CHAPEAU) ============
+     hat_width = 20
+     hat_height = 18
+     hat_rect = pygame.Rect(draw_x - hat_width // 2, draw_y - 48, hat_width, hat_height)
+    
+     # Dégradé de couleur pour la toque
+     for i in range(hat_height):
+        ratio = i / hat_height
+        r = int(self.chef_hat_color[0] * (1 - ratio * 0.3))
+        g = int(self.chef_hat_color[1] * (1 - ratio * 0.3))
+        b = int(self.chef_hat_color[2] * (1 - ratio * 0.3))
+        pygame.draw.line(screen, (r, g, b), 
+                        (draw_x - hat_width // 2, draw_y - 48 + i),
+                        (draw_x + hat_width // 2, draw_y - 48 + i))
+    
+     # Contour toque
+     pygame.draw.rect(screen, (100, 100, 100), hat_rect, 1)
+    
+     # Pompon sur la toque
+     pygame.draw.circle(screen, self.chef_hat_color, (int(draw_x), int(draw_y - 50)), 3)
+     pygame.draw.circle(screen, (255, 255, 255), (int(draw_x), int(draw_y - 50)), 3, 1)
+    
+     # ============ BARRE DE STRESS ============
+     if self.stress_level > 0.1:
+        bar_width = 45
+        bar_height = 5
+        bar_x = draw_x - bar_width // 2
+        bar_y = draw_y - 70
         
-        body_rect = pygame.Rect(self.x - 12, self.y - 15, 24, 30)
-        pygame.draw.rect(screen, self.chef_body_color, body_rect)
-        pygame.draw.rect(screen, (200, 200, 200), body_rect, 2)
+        # Fond noir
+        pygame.draw.rect(screen, (30, 30, 30), (bar_x, bar_y, bar_width, bar_height))
         
-        pygame.draw.circle(screen, self.chef_skin_color, 
-                          (int(self.x), int(self.y - 25)), 10)
+        # Remplissage couleur selon stress
+        fill_width = int(bar_width * self.stress_level)
+        stress_color = self.get_emotion_color()
+        pygame.draw.rect(screen, stress_color, (bar_x, bar_y, fill_width, bar_height))
         
-        hat_rect = pygame.Rect(self.x - 8, self.y - 45, 16, 25)
-        pygame.draw.rect(screen, self.chef_hat_color, hat_rect)
+        # Contour
+        pygame.draw.rect(screen, (255, 255, 255), (bar_x, bar_y, bar_width, bar_height), 1)
         
-        import pygame.font
+        # Emoji émotion
+        emoji = self.get_emotion_emoji()
         font = pygame.font.Font(None, 16)
-        text = font.render(self.get_state_text(), True, (255, 255, 255))
-        screen.blit(text, (int(self.x - 40), int(self.y + 35)))
+        emoji_text = font.render(emoji, True, (255, 255, 255))
+        screen.blit(emoji_text, (int(bar_x - 20), int(bar_y - 2)))

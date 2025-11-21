@@ -1,4 +1,4 @@
-# kitchen.py - VERSION AVEC VISUELS AMÉLIORÉS
+# kitchen.py - VERSION AVEC VISUELS AMÉLIORÉS - CORRIGÉE
 
 import pygame
 import time
@@ -244,7 +244,13 @@ class KitchenRenderer:
                 qty_rect = qty_text.get_rect(center=(station_x + station_width//2, badge_y))
                 self.screen.blit(qty_text, qty_rect)
 
+    
+   # REMPLACE ENTIÈREMENT draw_work_station et tout après jusqu'à draw_plating_station
+
     def draw_work_station(self, asset_manager):
+        import game_state
+        current_time = time.time()
+        
         work_rect = pygame.Rect(self.work_area['x'], self.work_area['y'], 
                               self.work_area['w'], self.work_area['h'])
         draw_gradient_rect(self.screen, (160, 110, 70), (140, 90, 60), work_rect)
@@ -287,8 +293,331 @@ class KitchenRenderer:
                            (knife_holder_x + 10, knife_holder_y + 12),
                            (knife_holder_x + 4, knife_holder_y + 12)])
         
+        # ⭐⭐⭐ PLAQUE DE CUISSON VERTICALE COMPACTE ⭐⭐⭐
+        hotplate_x = self.work_area['x'] + 120
+        hotplate_y = self.work_area['y'] + 15
+        hotplate_w = 65
+        hotplate_h = 110
+        
+        hotplate_rect = pygame.Rect(hotplate_x, hotplate_y, hotplate_w, hotplate_h)
+        
+        # Vérifier si quelqu'un cuisine
+        is_cooking = False
+        cooking_chef = None
+        if hasattr(game_state, 'bot_manager'):
+            for bot in game_state.bot_manager.bots:
+                if hasattr(bot, '_is_cooking') and bot._is_cooking:
+                    is_cooking = True
+                    cooking_chef = bot
+                    break
+        
+        # Cadre métallique de la plaque
+        pygame.draw.rect(self.screen, (80, 80, 80), hotplate_rect)
+        
+        # Surface de cuisson (avec gradient selon chaleur)
+        if is_cooking:
+            heat_pulse = int(200 + 55 * math.sin(current_time * 5))
+            cooking_surface_color = (heat_pulse, heat_pulse // 3, 30)
+        else:
+            cooking_surface_color = (60, 60, 60)
+        
+        cooking_surface = pygame.Rect(hotplate_x + 5, hotplate_y + 5, hotplate_w - 10, 70)
+        draw_gradient_rect(self.screen, cooking_surface_color,
+                          (max(0, cooking_surface_color[0] - 40),
+                           max(0, cooking_surface_color[1] - 40),
+                           max(0, cooking_surface_color[2] - 40)),
+                          cooking_surface)
+        
+        # Grille de cuisson
+        for i in range(4):
+            bar_y = hotplate_y + 10 + i * 15
+            pygame.draw.line(self.screen, (40, 40, 40),
+                            (hotplate_x + 7, bar_y),
+                            (hotplate_x + hotplate_w - 7, bar_y), 2)
+        
+        # Contour
+        pygame.draw.rect(self.screen, (50, 50, 50), hotplate_rect, 2)
+        
+        # Afficher l'ingrédient qui cuit si en cours
+        if is_cooking and cooking_chef:
+            ing_x = hotplate_x + hotplate_w // 2
+            ing_y = hotplate_y + 35
+            progress = cooking_chef.cooking_progress
+            
+            # Couleur selon cuisson
+            if progress < 0.25:
+                meat_color = (160, 60, 60)
+            elif progress < 0.50:
+                meat_color = (140, 50, 50)
+            elif progress < 0.75:
+                meat_color = (120, 70, 50)
+            elif progress < 1.0:
+                meat_color = (100, 60, 40)
+            elif progress < 1.2:
+                meat_color = (80, 40, 20)
+            else:
+                meat_color = (40, 20, 10)
+            
+            pygame.draw.circle(self.screen, meat_color, (ing_x, ing_y), 15)
+            pygame.draw.circle(self.screen, (255, 255, 255), (ing_x, ing_y), 15, 1)
+            
+            # Fumée
+            if progress > 0.1:
+                self.create_cooking_smoke(ing_x, ing_y, progress)
+            
+            # Mini barre de progression
+            bar_w = 50
+            bar_h = 4
+            bar_x = ing_x - bar_w // 2
+            bar_y = ing_y + 22
+            
+            pygame.draw.rect(self.screen, (0, 0, 0), (bar_x, bar_y, bar_w, bar_h))
+            
+            if progress < 0.75:
+                bar_color = (100, 255, 100)
+            elif progress < 1.0:
+                bar_color = (255, 255, 100)
+            elif progress < 1.2:
+                bar_color = (255, 150, 0)
+            else:
+                bar_color = (255, 50, 50)
+            
+            fill_width = int(bar_w * min(progress, 1.2))
+            pygame.draw.rect(self.screen, bar_color, (bar_x, bar_y, fill_width, bar_h))
+            pygame.draw.rect(self.screen, (255, 255, 255), (bar_x, bar_y, bar_w, bar_h), 1)
+        
+        # Contrôles (boutons rotatifs)
+        for i in range(2):
+            knob_x = hotplate_x + 10 + i * 35
+            knob_y = hotplate_y + 85
+            
+            pygame.draw.circle(self.screen, (100, 100, 100), (knob_x, knob_y), 6)
+            pygame.draw.circle(self.screen, (60, 60, 60), (knob_x, knob_y), 6, 2)
+            
+            angle = (current_time * 0.5 + i) if is_cooking else i
+            mark_x = knob_x + math.cos(angle) * 4
+            mark_y = knob_y + math.sin(angle) * 4
+            pygame.draw.circle(self.screen, (200, 50, 50), (int(mark_x), int(mark_y)), 1)
+        
+        # LED d'état
+        led_x = hotplate_x + hotplate_w - 8
+        led_y = hotplate_y + 85
+        
+        if is_cooking:
+            pulse = int(200 + 55 * math.sin(current_time * 4))
+            led_color = (pulse, 50, 50)
+            glow_surf = pygame.Surface((16, 16), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (255, 100, 100, 80), (8, 8), 8)
+            self.screen.blit(glow_surf, (led_x - 8, led_y - 8))
+        else:
+            led_color = (80, 80, 80)
+        
+        pygame.draw.circle(self.screen, led_color, (led_x, led_y), 3)
+        pygame.draw.circle(self.screen, (255, 255, 255), (led_x, led_y), 3, 1)
+        
         self.draw_prepared_area(asset_manager)
         self.cutting_position = (cutting_x + cutting_w//2, cutting_y + cutting_h//2)
+        self.hotplate_position = (hotplate_x + hotplate_w//2, hotplate_y + 35)
+
+    def draw_cooking_station(self, asset_manager):
+        """⭐ STATION DE CUISSON - AVEC STEAK VISIBLE"""
+        import game_state
+        current_time = time.time()
+        
+        # Plan de travail en bois
+        cooking_rect = pygame.Rect(self.cooking_area['x'], self.cooking_area['y'], 
+                                  self.cooking_area['w'], self.cooking_area['h'])
+        draw_gradient_rect(self.screen, (160, 110, 70), (140, 90, 60), cooking_rect)
+        
+        # Texture bois
+        for i in range(0, self.cooking_area['w'], 30):
+            line_x = self.cooking_area['x'] + i
+            pygame.draw.line(self.screen, (140, 100, 65), 
+                           (line_x, self.cooking_area['y']), 
+                           (line_x, self.cooking_area['y'] + self.cooking_area['h']), 1)
+        
+        pygame.draw.rect(self.screen, (100, 70, 40), cooking_rect, 3)
+        
+        # Titre
+        title_bg = pygame.Rect(self.cooking_area['x'], self.cooking_area['y'] - 30, 
+                              self.cooking_area['w'], 25)
+        draw_gradient_rect(self.screen, (200, 80, 40), (180, 60, 20), title_bg)
+        title = self.font_small.render("🔥 CUISSON", True, (255, 255, 255))
+        self.screen.blit(title, (self.cooking_area['x'] + 10, self.cooking_area['y'] - 25))
+        
+        # Plaque de cuisson (grill)
+        grill_x = self.cooking_area['x'] + 15
+        grill_y = self.cooking_area['y'] + 20
+        grill_w = 80
+        grill_h = 70
+        
+        grill_rect = pygame.Rect(grill_x, grill_y, grill_w, grill_h)
+        
+        # Vérifier si quelqu'un cuisine
+        is_cooking = False
+        cooking_chef = None
+        if hasattr(game_state, 'bot_manager'):
+            for bot in game_state.bot_manager.bots:
+                if hasattr(bot, '_is_cooking') and bot._is_cooking:
+                    is_cooking = True
+                    cooking_chef = bot
+                    break
+        
+        # Fond de la plaque (métal)
+        if is_cooking:
+            # Chauffée : rouge/orange pulsant
+            heat_pulse = int(200 + 55 * math.sin(current_time * 5))
+            grill_color = (heat_pulse, heat_pulse // 3, 30)
+        else:
+            # Froide : gris foncé
+            grill_color = (80, 80, 80)
+        
+        draw_gradient_rect(self.screen, grill_color, 
+                          (max(0, grill_color[0] - 40), 
+                           max(0, grill_color[1] - 40), 
+                           max(0, grill_color[2] - 40)), 
+                          grill_rect)
+        
+        # Grille (barres horizontales)
+        for i in range(5):
+            bar_y = grill_y + 10 + i * 12
+            pygame.draw.line(self.screen, (60, 60, 60), 
+                           (grill_x + 5, bar_y), 
+                           (grill_x + grill_w - 5, bar_y), 3)
+            
+            # Reflets sur les barres
+            pygame.draw.line(self.screen, (120, 120, 120), 
+                           (grill_x + 5, bar_y - 1), 
+                           (grill_x + grill_w - 5, bar_y - 1), 1)
+        
+        # Contour de la plaque
+        pygame.draw.rect(self.screen, (50, 50, 50), grill_rect, 3)
+        
+        # ⭐⭐⭐ SI CUISSON EN COURS, AFFICHER LE STEAK ⭐⭐⭐
+        if is_cooking and cooking_chef:
+            ing_x = grill_x + grill_w // 2
+            ing_y = grill_y + grill_h // 2
+            
+            # Progression de cuisson
+            progress = cooking_chef.cooking_progress
+            
+            # Couleur selon cuisson (pour le steak)
+            if progress < 0.25:
+                meat_color = (160, 60, 60)      # Rouge saignant
+            elif progress < 0.50:
+                meat_color = (140, 50, 50)      # Rouge foncé
+            elif progress < 0.75:
+                meat_color = (120, 70, 50)      # Rosé
+            elif progress < 1.0:
+                meat_color = (100, 60, 40)      # Brun
+            elif progress < 1.2:
+                meat_color = (80, 40, 20)       # Brun foncé
+            else:
+                meat_color = (40, 20, 10)       # Brûlé
+            
+            # ⭐ DESSINER LE STEAK SUR LA PLAQUE
+            # Corps principal du steak
+            pygame.draw.circle(self.screen, meat_color, (ing_x, ing_y), 20)
+            pygame.draw.circle(self.screen, (255, 200, 150), (ing_x, ing_y), 20, 2)
+            
+            # Marbrures et détails du steak
+            for dot_idx in range(3):
+                spot_x = ing_x + (dot_idx - 1) * 8
+                spot_y = ing_y + (dot_idx - 1) * 5
+                pygame.draw.circle(self.screen, (80, 30, 20), (spot_x, spot_y), 3)
+            
+            # Reflet sur le steak
+            pygame.draw.circle(self.screen, (200, 100, 80), (ing_x - 7, ing_y - 7), 5)
+            
+            # Fumée intense si en train de cuire
+            if progress > 0.1:
+                self.create_cooking_smoke(ing_x, ing_y, progress)
+            
+            # Barre de progression
+            bar_width = 60
+            bar_height = 6
+            bar_x = ing_x - bar_width // 2
+            bar_y = ing_y + 30
+            
+            # Fond
+            pygame.draw.rect(self.screen, (0, 0, 0), 
+                           (bar_x, bar_y, bar_width, bar_height))
+            
+            # Remplissage selon progression
+            fill_width = int(bar_width * min(progress, 1.2))
+            
+            if progress < 0.75:
+                bar_color = (100, 255, 100)
+            elif progress < 1.0:
+                bar_color = (255, 255, 100)
+            elif progress < 1.2:
+                bar_color = (255, 150, 0)
+            else:
+                bar_color = (255, 50, 50)
+            
+            pygame.draw.rect(self.screen, bar_color,
+                           (bar_x, bar_y, fill_width, bar_height))
+            
+            # Contour
+            pygame.draw.rect(self.screen, (255, 255, 255),
+                           (bar_x, bar_y, bar_width, bar_height), 1)
+            
+            # Pourcentage
+            progress_text = self.font_small.render(f"{int(progress * 100)}%", 
+                                                  True, (255, 255, 255))
+            self.screen.blit(progress_text, (ing_x - 15, bar_y + 8))
+        
+        # Boutons de contrôle (décoratifs)
+        for i in range(3):
+            knob_x = self.cooking_area['x'] + self.cooking_area['w'] - 30
+            knob_y = self.cooking_area['y'] + 30 + i * 25
+            
+            # Bouton rotatif
+            pygame.draw.circle(self.screen, (100, 100, 100), (knob_x, knob_y), 8)
+            pygame.draw.circle(self.screen, (60, 60, 60), (knob_x, knob_y), 8, 2)
+            
+            # Marque sur le bouton
+            angle = (current_time * 0.5 + i) if is_cooking else i
+            mark_x = knob_x + math.cos(angle) * 5
+            mark_y = knob_y + math.sin(angle) * 5
+            pygame.draw.circle(self.screen, (200, 50, 50), (int(mark_x), int(mark_y)), 2)
+        
+        # LED de status
+        led_x = self.cooking_area['x'] + self.cooking_area['w'] - 30
+        led_y = self.cooking_area['y'] + 10
+        
+        if is_cooking:
+            # LED rouge pulsante
+            pulse = int(200 + 55 * math.sin(current_time * 4))
+            led_color = (pulse, 50, 50)
+            
+            # Halo lumineux
+            glow_surf = pygame.Surface((20, 20), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (255, 100, 100, 80), (10, 10), 10)
+            self.screen.blit(glow_surf, (led_x - 10, led_y - 10))
+        else:
+            led_color = (80, 80, 80)
+        
+        pygame.draw.circle(self.screen, led_color, (led_x, led_y), 4)
+        pygame.draw.circle(self.screen, (255, 255, 255), (led_x, led_y), 4, 1)
+        
+        # Sauvegarder la position pour les bots - BIEN ALIGNÉE
+        self.cooking_position = (grill_x + grill_w//2, grill_y + grill_h//2)
+        self.cooking_area_center = (self.cooking_area['x'] + self.cooking_area['w']//2, 
+                                   self.cooking_area['y'] + self.cooking_area['h']//2)
+
+    def create_cooking_smoke(self, x, y, intensity):
+        """Crée de la fumée pendant la cuisson"""
+        if pygame.time.get_ticks() % 5 == 0:
+            for _ in range(2):
+                self.steam_particles.append({
+                    'x': x + (pygame.time.get_ticks() % 20 - 10),
+                    'y': y - 10,
+                    'vy': -1.0 - (intensity * 0.5),
+                    'size': 5 + intensity * 3,
+                    'life': 1.0,
+                    'color': (200, 200, 200) if intensity < 1.0 else (150, 150, 150)
+                })
 
     def draw_prepared_area(self, asset_manager):
         import game_state
@@ -342,21 +671,6 @@ class KitchenRenderer:
     def update_steam_particles(self):
         """⭐ NOUVEAU : Gère la vapeur au-dessus de la plaque de cuisson"""
         import game_state
-        current_time = time.time()
-        
-        # Créer de la vapeur si quelqu'un cuisine
-        if hasattr(game_state, 'bot_manager'):
-            for bot in game_state.bot_manager.bots:
-                if bot.state == "cutting" and bot.preparing in ["steak"]:
-                    # Vapeur au-dessus de la planche
-                    if pygame.time.get_ticks() % 10 == 0:
-                        self.steam_particles.append({
-                            'x': self.cutting_position[0] + (pygame.time.get_ticks() % 10 - 5),
-                            'y': self.cutting_position[1],
-                            'vy': -0.5,
-                            'size': 4,
-                            'life': 1.0
-                        })
         
         # Mettre à jour les particules de vapeur
         for particle in self.steam_particles[:]:
@@ -490,8 +804,17 @@ class KitchenRenderer:
             pygame.draw.rect(glow_surf, (255, 215, 0, alpha), (0, 0, self.service_area['w'] + i*6, self.service_area['h'] + i*6))
             self.screen.blit(glow_surf, (self.service_area['x'] - i*3, self.service_area['y'] - i*3))
         
-        draw_gradient_rect(self.screen, (250, 220, 140), (230, 200, 120), service_rect)
-        pygame.draw.rect(self.screen, (180, 150, 80), service_rect, 3)
+        # ⭐ Plan en bois comme les autres stations
+        draw_gradient_rect(self.screen, (160, 110, 70), (140, 90, 60), service_rect)
+        
+        # Texture bois verticale
+        for i in range(0, self.service_area['h'], 10):
+            line_y = self.service_area['y'] + i
+            pygame.draw.line(self.screen, (140, 100, 65), 
+                           (self.service_area['x'], line_y), 
+                           (self.service_area['x'] + self.service_area['w'], line_y), 1)
+        
+        pygame.draw.rect(self.screen, (100, 70, 40), service_rect, 3)
         
         title_bg = pygame.Rect(self.service_area['x'], self.service_area['y'] - 30, self.service_area['w'], 25)
         draw_gradient_rect(self.screen, (180, 150, 80), (160, 130, 60), title_bg)
@@ -747,13 +1070,26 @@ class KitchenRenderer:
             pygame.draw.circle(self.screen, (240, 60, 60), pos, 4)
     
     def get_interaction_zones(self):
+        """Retourne les positions correctes pour que les bots aillent cuire le steak"""
+        # Position EXACTE où les bots doivent aller pour cuire
+        # La plaque est à self.cooking_area['x'] + 15 et self.cooking_area['y'] + 20
+        # On veut le centre de la plaque pour que le steak s'affiche dessus
+        
+        grill_x = self.cooking_area['x'] + 15
+        grill_y = self.cooking_area['y'] + 20
+        grill_w = 80
+        grill_h = 70
+        
+        cooking_x = grill_x + grill_w // 2
+        cooking_y = grill_y + grill_h // 2
+        
         return {
-            'fridge_access': (self.storage_area['x'] + 140, self.storage_area['y'] + 160),
-            'cutting_board': (self.work_area['x'] + 60, self.work_area['y'] + 100),
-            'plating_station': (self.plating_area['x'] + 100, self.plating_area['y'] + 100),
+            'fridge': (self.storage_area['x'] + 140, self.storage_area['y'] + 160),
+            'cutting': (self.work_area['x'] + 60, self.work_area['y'] + 100),
+            'cooking': (cooking_x, cooking_y),  # ⭐ POSITION CORRECTE DE LA PLAQUE
+            'plating': (self.plating_area['x'] + 100, self.plating_area['y'] + 100),
             'delivery': (self.service_area['x'] + 60, self.service_area['y'] + 150)
         }
-
     def render_full_kitchen(self, bot_manager, asset_manager, timer):
         """Render complet avec TOUS les nouveaux visuels"""
         self.draw_floor()
@@ -764,6 +1100,7 @@ class KitchenRenderer:
         
         self.draw_individual_ingredient_stations(asset_manager)
         self.draw_work_station(asset_manager)
+        self.draw_cooking_station(asset_manager)
         self.draw_plating_station(asset_manager)
         self.draw_service_station()
         
@@ -853,6 +1190,9 @@ class KitchenRenderer:
                 action_info = "🚀 Livre le plat"
             elif bot.inv:
                 action_info = f"🥕 Porte {bot.inv}"
+            elif hasattr(bot, '_is_cooking') and bot._is_cooking:
+                cook_progress = int(bot.cooking_progress * 100)
+                action_info = f"🔥 Cuit {bot._is_cooking} ({cook_progress}%)"
             elif bot.preparing:
                 prep_time_left = bot.prep_times.get(bot.preparing, 1.5) - (time.time() - bot.prep_time)
                 action_info = f"🔪 {bot.preparing} ({prep_time_left:.1f}s)"

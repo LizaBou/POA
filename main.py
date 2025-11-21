@@ -1,6 +1,6 @@
 """
 Point d'entrée principal pour Mini Overcooked avec ARCHITECTURE BDI
-VERSION CORRIGÉE - Affichage cuisine continu pendant assemblage
+VERSION COMPLÈTE - Système de cuisson + Visuels améliorés + BDI
 """
 import sys
 import os
@@ -15,7 +15,8 @@ def main():
     print("=" * 60)
     print("✅ Agents BDI (Belief-Desire-Intention)")
     print("✅ Planification STRIPS automatique")
-    print("✅ Délibération rationnelle")
+    print("✅ Système de cuisson réaliste")
+    print("✅ Système émotionnel (stress/émotions)")
     print("=" * 60)
     
     try:
@@ -33,7 +34,7 @@ def main():
         # Initialiser pygame
         pygame.init()
         screen = pygame.display.set_mode((config.WIDTH, config.HEIGHT))
-        pygame.display.set_caption("Mini Overcooked - Architecture BDI")
+        pygame.display.set_caption("Mini Overcooked - Architecture BDI + Cuisson")
         clock = pygame.time.Clock()
         
         print("✓ Interface graphique initialisée")
@@ -130,7 +131,7 @@ def main():
             ui_renderer = None
         
         print("\n" + "🎮" * 30)
-        print("🧠 MODE BDI ACTIVÉ")
+        print("🧠 MODE BDI ACTIVÉ - SYSTÈME DE CUISSON ACTIVÉ")
         print("🎮" * 30)
         print("\n📝 Commandes disponibles:")
         for recipe in game_state.available_ingredients.keys():
@@ -141,6 +142,7 @@ def main():
         print("  F2  - Réinitialiser système")
         print("  F7  - 🧠 État mental des agents")
         print("  F8  - 🧠 Toggle logs BDI")
+        print("  F9  - 😊 État émotionnel des chefs")
         print("  ESC - Quitter")
         
         running = True
@@ -195,7 +197,9 @@ def main():
                             bot.current_intention = None
                             bot.inv = None
                             bot._is_preparing = None
+                            bot._is_cooking = None
                             bot._is_plating = False
+                            bot.cooking_progress = 0.0
                         print("🔧 Système BDI réinitialisé")
                     
                     elif event.key == pygame.K_F7:
@@ -245,6 +249,23 @@ def main():
                         status = "ACTIVÉS" if show_bdi_logs else "DÉSACTIVÉS"
                         print(f"\n🔔 Logs BDI temps réel: {status}")
                     
+                    elif event.key == pygame.K_F9:
+                        print("\n" + "😊" * 30)
+                        print("ÉTAT ÉMOTIONNEL DES CHEFS")
+                        print("😊" * 30)
+                        
+                        for bot in bot_manager.bots:
+                            emoji = bot.get_emotion_emoji()
+                            print(f"\n{emoji} {bot.chef_name}:")
+                            print(f"  Émotion: {bot.current_emotion.value}")
+                            print(f"  Stress: {bot.stress_level:.1%}")
+                            print(f"  Échecs consécutifs: {bot.consecutive_failures}")
+                            print(f"  Temps depuis succès: {time.time() - bot.last_success_time:.1f}s")
+                            
+                            if bot._is_cooking:
+                                print(f"  🔥 En train de cuire: {bot._is_cooking}")
+                                print(f"     Progression: {bot.cooking_progress:.1%}")
+                    
                     else:
                         if event.unicode.isprintable():
                             game_state.user_input += event.unicode
@@ -265,18 +286,22 @@ def main():
                     for bot in bot_manager.bots:
                         beliefs_count = len(bot.beliefs)
                         desires_count = len(bot.desires)
+                        emoji = bot.get_emotion_emoji()
                         
-                        status = f"{bot.chef_name}: "
+                        status = f"{emoji} {bot.chef_name}: "
                         
                         if bot.current_intention:
                             status += f"🎯 {bot.current_intention.desire.goal}"
                             status += f" ({len(bot.current_intention.plan)} actions)"
+                            
+                            if bot._is_cooking:
+                                status += f" | 🔥 Cuisson {bot.cooking_progress:.0%}"
                         elif bot.desires:
                             status += f"💭 {desires_count} options"
                         else:
                             status += "🤔 Observation..."
                         
-                        status += f" | {beliefs_count} beliefs"
+                        status += f" | Stress: {bot.stress_level:.0%}"
                         print(status)
                     
                     last_bdi_log_time = current_time
@@ -292,43 +317,39 @@ def main():
                 import traceback
                 traceback.print_exc()
 
-            # ⭐⭐⭐ CORRECTION PRINCIPALE: TOUJOURS DESSINER LA CUISINE ⭐⭐⭐
+            # ⭐ RENDU COMPLET DE LA CUISINE
             screen.fill((40, 40, 40))
             
             try:
                 if kitchen_renderer:
-                    # ⭐ Dessiner TOUT le temps avec les NOUVEAUX VISUELS
+                    # Dessiner tous les éléments de la cuisine
                     kitchen_renderer.draw_floor()
-                    
-                    # ⭐ NOUVEAUX : Éléments décoratifs
                     kitchen_renderer.draw_overhead_lamps()
                     kitchen_renderer.draw_wall_decorations()
                     
+                    # Stations de travail
                     kitchen_renderer.draw_individual_ingredient_stations(asset_manager)
                     kitchen_renderer.draw_work_station(asset_manager)
+                    
                     kitchen_renderer.draw_plating_station(asset_manager)
                     kitchen_renderer.draw_service_station()
                     
-                    # ⭐ NOUVEAU : Vapeur de cuisson
+                    # Particules de vapeur
                     kitchen_renderer.update_steam_particles()
                     kitchen_renderer.draw_steam_particles()
                     
-                    # Dessiner tous les chefs avec leur animation
+                    # Dessiner les chefs
                     for bot in bot_manager.bots:
-                        # ⭐ Vérifier livraison pour animation
                         kitchen_renderer.check_delivery_trigger(bot)
-                        
-                        # ⭐ Dessiner le chef avec toutes ses animations
                         kitchen_renderer.draw_chef_enhanced(bot, asset_manager)
                         kitchen_renderer.draw_chef_status(bot)
                     
-                    # ⭐ Animation de découpe si active
+                    # Animation de découpe
                     if kitchen_renderer.cutting_animation.active:
                         kitchen_renderer.cutting_animation.update()
                         kitchen_renderer.cutting_animation.draw()
                         
                 else:
-                    # Fallback basique
                     draw_basic_kitchen(screen)
                     for bot in bot_manager.bots:
                         bot.draw_chef(screen)
@@ -350,7 +371,7 @@ def main():
                 score_text = font_small.render(f"💰 {game_state.score}", True, (255, 215, 0))
                 screen.blit(score_text, (config.WIDTH - 100, 35))
                 
-                bdi_status = "🧠 BDI ACTIF" if show_bdi_logs else "🧠 BDI (logs off)"
+                bdi_status = "🧠 BDI+🔥" if show_bdi_logs else "🧠 BDI (off)"
                 bdi_text = font_small.render(bdi_status, True, (100, 255, 100))
                 screen.blit(bdi_text, (config.WIDTH - 150, 60))
                 
@@ -430,7 +451,7 @@ def show_game_over_screen(screen, stats, bot_manager):
         title = font_large.render("PARTIE TERMINÉE!", True, (255, 215, 0))
         screen.blit(title, title.get_rect(center=(config.WIDTH//2, 80)))
         
-        subtitle = font_medium.render("🧠 Architecture BDI Multi-Agents", True, (100, 255, 100))
+        subtitle = font_medium.render("🧠 Architecture BDI + 🔥 Cuisson", True, (100, 255, 100))
         screen.blit(subtitle, subtitle.get_rect(center=(config.WIDTH//2, 130)))
         
         y_offset = 180
