@@ -78,38 +78,44 @@ class BotManager:
         return 0
     
     def update(self):
-        """Met à jour tous les bots - CHACUN travaille sur SA commande"""
-        self.frame_counter += 1
+     for bot in self.bots:
+        bot.update()
+    
+     # Debug périodique
+     if self.frame_counter % 120 == 0:
+        print(f"\n🔍 DEBUG COMPÉTITION (frame {self.frame_counter}):")
         
-        # IMPORTANT: Tous les bots essaient de prendre une commande s'ils sont libres
+        if hasattr(game_state, 'order_manager'):
+            status = game_state.order_manager.get_status_summary()
+            print(f"   📋 Commandes disponibles: {status['available_orders']}")
+            print(f"   ⚙️ Commandes actives: {status['active_orders']}")
+            print(f"   ✅ Commandes complétées: {status['completed_orders']}")
+        
         for bot in self.bots:
-            if bot.is_available():
-                self.try_claim_order(bot)
-        
-        # Mettre à jour tous les bots
-        for bot in self.bots:
-            bot.update()
-        
-        # Debug périodique
-        if self.frame_counter % 120 == 0:
-            print(f"\n🔍 DEBUG COMPÉTITION (frame {self.frame_counter}):")
+            print(f"   {bot.chef_name}:")
+            print(f"      - État: {bot.state}")
+            print(f"      - Position: ({bot.x:.1f}, {bot.y:.1f})")
             
             if hasattr(game_state, 'order_manager'):
-                status = game_state.order_manager.get_status_summary()
-                print(f"   📋 Commandes disponibles: {status['available_orders']}")
-                print(f"   ⚙️ Commandes actives: {status['active_orders']}")
-                print(f"   ✅ Commandes complétées: {status['completed_orders']}")
-            
-            for bot in self.bots:
-                print(f"   {bot.chef_name}:")
-                print(f"      - État: {bot.state}")
-                print(f"      - Position: ({bot.x:.1f}, {bot.y:.1f})")
-                
-                if hasattr(game_state, 'order_manager'):
+                my_order = game_state.order_manager.get_chef_order(bot.bot_id)
+                if my_order:
                     progress = game_state.order_manager.get_chef_progress(bot.bot_id)
+                    print(f"      - Commande: {my_order['order_data']['name']}")
+                    
+                    # ✅ CORRECTION COMPLÈTE : Gérer toutes les structures possibles
                     if progress:
-                        print(f"      - Commande: {progress['order_name']}")
-                        print(f"      - Progression: {progress['prepared']}/{progress['required']}")
+                        if 'prepared_ingredients' in progress:
+                            prepared_count = len(progress['prepared_ingredients'])
+                            total_count = len(my_order['order_data']['ingredients'])
+                            print(f"      - Progression: {prepared_count}/{total_count}")
+                        elif 'prepared' in progress and 'required' in progress:
+                            print(f"      - Progression: {progress['prepared']}/{progress['required']}")
+                        else:
+                            total_count = len(my_order['order_data']['ingredients'])
+                            print(f"      - Progression: ?/{total_count}")
+                    else:
+                        total_count = len(my_order['order_data']['ingredients'])
+                        print(f"      - Progression: 0/{total_count}")
     
     def draw_all(self, screen):
         """Dessine tous les bots"""

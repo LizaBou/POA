@@ -7,7 +7,7 @@ from config import fridge, recipes, delivery_counter
 # Variables globales de l'état du jeu
 score = 0
 combo = 0
-timer = 60
+timer = 120
 user_input = ""
 
 # État des commandes
@@ -122,7 +122,7 @@ def initialize_game():
     global score, combo, timer, user_input
     score = 0
     combo = 0
-    timer = 60
+    timer = 120
     user_input = ""
     reset_order()
     initialize_ingredients()

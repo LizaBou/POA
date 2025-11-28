@@ -145,30 +145,26 @@ class OrderManager:
         return completion_data
     
     def get_chef_progress(self, bot_id):
-        """
-        Retourne la progression d'un chef sur sa commande
-        
-        Returns:
-            dict: {order_name, prepared, required, ingredients_needed, is_ready}
-        """
-        if bot_id not in self.chef_orders:
-            return None
-        
-        order_info = self.chef_orders[bot_id]
-        required = order_info['order_data']['ingredients']
-        prepared = order_info['prepared_ingredients']
-        
-        # Ingrédients manquants
-        needed = [ing for ing in required if ing not in prepared]
-        
-        return {
-            'order_name': order_info['order_data']['name'],
-            'prepared': len(prepared),
-            'required': len(required),
-            'ingredients_needed': needed,
-            'is_ready': len(needed) == 0,
-            'plated': order_info['plated']
-        }
+   
+     if bot_id not in self.chef_orders:
+        return None
+    
+     order_info = self.chef_orders[bot_id]
+     required = order_info['order_data']['ingredients']
+     prepared = order_info['prepared_ingredients']
+    
+     # Ingrédients manquants
+     needed = [ing for ing in required if ing not in prepared]
+    
+     # ✅ CORRECTION : Structure cohérente avec BDIBot
+     return {
+        'prepared_ingredients': prepared,  # ✅ AU LIEU DE 'prepared'
+        'ingredients_needed': needed,      # ✅ DÉJÀ CORRECT
+        'is_ready': len(needed) == 0,      # ✅ DÉJÀ CORRECT
+        'plated': order_info['plated'],
+        'order_name': order_info['order_data']['name'],  # ✅ POUR COMPATIBILITÉ
+        'total_ingredients': len(required)  # ✅ POUR COMPATIBILITÉ
+    }
     
     def get_available_count(self):
         """Nombre de commandes disponibles"""
@@ -183,27 +179,26 @@ class OrderManager:
         return len(self.completed_orders)
     
     def get_status_summary(self):
-        """
-        Résumé complet du système de commandes
+  
+     chefs_working = []
+     for bot_id, order_info in self.chef_orders.items():
+        progress = self.get_chef_progress(bot_id)
+        # ✅ CORRECTION : Utiliser la nouvelle structure
+        prepared_count = len(progress['prepared_ingredients'])
+        total_count = len(order_info['order_data']['ingredients'])
         
-        Returns:
-            dict: Statistiques complètes
-        """
-        chefs_working = []
-        for bot_id, order_info in self.chef_orders.items():
-            progress = self.get_chef_progress(bot_id)
-            chefs_working.append({
-                'chef': order_info['chef_name'],
-                'order': progress['order_name'],
-                'progress': f"{progress['prepared']}/{progress['required']}"
-            })
-        
-        return {
-            'available_orders': len(self.available_orders),
-            'active_orders': len(self.chef_orders),
-            'completed_orders': len(self.completed_orders),
-            'chefs_working': chefs_working
-        }
+        chefs_working.append({
+            'chef': order_info['chef_name'],
+            'order': progress['order_name'],
+            'progress': f"{prepared_count}/{total_count}"  # ✅ CORRECT
+        })
+    
+     return {
+        'available_orders': len(self.available_orders),
+        'active_orders': len(self.chef_orders),
+        'completed_orders': len(self.completed_orders),
+        'chefs_working': chefs_working
+    }
     
     def reset(self):
         """Réinitialise complètement le système"""
