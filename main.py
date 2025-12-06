@@ -1,6 +1,7 @@
 """
 Point d'entrée principal pour Mini Overcooked avec ARCHITECTURE BDI
-VERSION COMPLÈTE CORRIGÉE - SANS STRESS INDIVIDUEL DES CHEFS
+VERSION COMPLÈTE CORRIGÉE - INTERFACE AMÉLIORÉE
+✅ Système d'accidents RETIRÉ
 """
 import sys
 import os
@@ -18,10 +19,10 @@ def main():
     print("✅ Planification STRIPS automatique") 
     print("✅ Système de cuisson réaliste")
     print("✅ Système émotionnel (stress/émotions)")
-    print("✅ SYSTÈME DE STRESS ET ACCIDENTS ACTIVÉ")
     print("✅ CORRECTION DU BLOCAGE AUX BACS")
     print("✅ STRESS ÉQUILIBRÉ ET STABLE")
-    print("✅ COMPTAGE ACCIDENTS CORRECT")
+    print("✅ INTERFACE CORRIGÉE")
+    print("❌ ACCIDENTS DÉSACTIVÉS")
     print("=" * 60)
     
     try:
@@ -53,11 +54,13 @@ def main():
             kitchen_renderer = KitchenRenderer(screen)
             game_state.kitchen_renderer = kitchen_renderer
             
-            # ✅ STRESS INITIAL MODÉRÉ
+            # ✅ STRESS INITIAL MODÉRÉ - ACCIDENTS DÉSACTIVÉS
             kitchen_renderer.kitchen_stress_level = 10
+            # Désactiver le système d'accidents
             kitchen_renderer.accident_cooldown = 0
-            kitchen_renderer.total_accidents_count = 0  # ✅ COMPTEUR TOTAL DES ACCIDENTS
-            print("✓ Renderer de cuisine initialisé")
+            kitchen_renderer.total_accidents_count = 0
+            kitchen_renderer.panic_mode = False  # Désactiver le mode panique
+            print("✓ Renderer de cuisine initialisé (accidents désactivés)")
         except Exception as e:
             print(f"❌ Erreur renderer: {e}")
             kitchen_renderer = None
@@ -90,7 +93,7 @@ def main():
             print(f"⚠ Erreur assets: {e}")
             asset_manager = None
         
-        # ⭐ INITIALISATION AGENTS BDI - VERSION CORRIGÉE
+        # ⭐ INITIALISATION AGENTS BDI
         print("\n" + "=" * 60)
         print("🧠 INITIALISATION AGENTS BDI - BLOCAGE CORRIGÉ")
         print("=" * 60)
@@ -99,7 +102,6 @@ def main():
             bot_manager = BotManager()
             game_state.bot_manager = bot_manager
             
-            # ✅ CORRECTION MAJEURE : Positions initiales DANS la cuisine
             print("\n🤖 Création Chef 1...")
             chef1 = BDIBot(x=250, y=300, chef_name="Chef Marcel", color_variant=0)
             print(f"  ✓ {chef1.chef_name} créé à ({chef1.x}, {chef1.y})")
@@ -118,7 +120,7 @@ def main():
                 if hasattr(bot, 'set_bot_manager'):
                     bot.set_bot_manager(bot_manager)
             
-            # Synchroniser les zones AVEC POSITIONS CORRIGÉES
+            # Synchroniser les zones
             if kitchen_renderer:
                 zones = kitchen_renderer.get_interaction_zones()
                 bins = getattr(kitchen_renderer, 'ingredient_positions', {})
@@ -135,6 +137,7 @@ def main():
             print("\n" + "=" * 60)
             print("✅ SYSTÈME BDI MULTI-AGENTS PRÊT!")
             print("🎯 BLOCAGE AUX BACS CORRIGÉ")
+            print("❌ ACCIDENTS DÉSACTIVÉS")
             print("=" * 60)
             
         except Exception as e:
@@ -153,7 +156,7 @@ def main():
         
         print("\n" + "🎮" * 30)
         print("🧠 MODE BDI ACTIVÉ - STRESS ÉQUILIBRÉ")
-        print("⚡ ACCIDENTS MODÉRÉS")
+        print("❌ ACCIDENTS DÉSACTIVÉS")
         print("🎮" * 30)
         print("\n📝 Commandes disponibles:")
         for recipe in game_state.available_ingredients.keys():
@@ -162,21 +165,19 @@ def main():
         print("\n⌨️ Raccourcis:")
         print("  F1  - Ajouter 5 commandes (test)")
         print("  F2  - Réinitialiser système")
-        print("  F3  - ⚡ FORCER UN ACCIDENT (test)")
-        print("  F4  - 📈 AUGMENTER STRESS +15%")
         print("  F5  - 🎯 DEBUG POSITIONS BOTS")
         print("  F7  - 🧠 État mental des agents")
         print("  F8  - 🧠 Toggle logs BDI")
         print("  F9  - 😊 État émotionnel des chefs")
         print("  F10 - 📊 État du stress de la cuisine")
         print("  ESC - Quitter")
+        print("\n⚠️  Les accidents sont désactivés")
         
         running = True
         frame_count = 0
         last_debug_time = 0
         show_bdi_logs = True
         last_bdi_log_time = 0
-        last_accident_check = time.time()
         recipe_names = list(game_state.available_ingredients.keys())
         
         while running and game_logic.is_running():
@@ -215,7 +216,6 @@ def main():
                             order_manager.add_order(recipe, ingredients)
                             print(f"  {i+1}. {recipe}")
                         
-                        # ✅ STRESS MODÉRÉ POUR 5 COMMANDES
                         if kitchen_renderer:
                             kitchen_renderer.kitchen_stress_level = min(70, kitchen_renderer.kitchen_stress_level + 15)
                             print(f"⚡ Stress augmenté à {kitchen_renderer.kitchen_stress_level}%")
@@ -235,34 +235,12 @@ def main():
                             bot.action_attempts = 0
                         if kitchen_renderer:
                             kitchen_renderer.kitchen_stress_level = 10
-                            kitchen_renderer.kitchen_accidents = []
+                            # Réinitialiser sans accidents
+                            if hasattr(kitchen_renderer, 'kitchen_accidents'):
+                                kitchen_renderer.kitchen_accidents = []
                             kitchen_renderer.panic_mode = False
-                            kitchen_renderer.total_accidents_count = 0  # ✅ RÉINITIALISER LE COMPTEUR
+                            kitchen_renderer.total_accidents_count = 0
                         print("🔧 Système BDI réinitialisé")
-                    
-                    elif event.key == pygame.K_F3:
-                        print("\n💥 FORÇAGE D'UN ACCIDENT VISIBLE!")
-                        if bot_manager and hasattr(bot_manager, 'bots') and kitchen_renderer:
-                            bot = random.choice(bot_manager.bots)
-                            accident_type = random.choice(["drop_plate", "slip_fall", "ingredient_spill"])
-                            kitchen_renderer.trigger_accident(bot, accident_type)
-                            print(f"💥 Accident forcé: {accident_type} pour {bot.chef_name}")
-                            # ✅ INCRÉMENTER LE COMPTEUR TOTAL
-                            kitchen_renderer.total_accidents_count += 1
-                            print(f"📊 Total accidents: {kitchen_renderer.total_accidents_count}")
-                            # Stress modéré
-                            kitchen_renderer.kitchen_stress_level = min(80, kitchen_renderer.kitchen_stress_level + 10)
-                    
-                    elif event.key == pygame.K_F4:
-                        print("\n📈 AUGMENTATION FORCÉE DU STRESS!")
-                        if kitchen_renderer:
-                            current_stress = kitchen_renderer.kitchen_stress_level
-                            new_stress = min(85, current_stress + 15)  # Limité à 85%
-                            kitchen_renderer.kitchen_stress_level = new_stress
-                            print(f"⚡ Stress augmenté: {current_stress}% → {new_stress}%")
-                            
-                            if new_stress >= 70 and not kitchen_renderer.panic_mode:
-                                kitchen_renderer.trigger_panic_mode()
                     
                     elif event.key == pygame.K_F5:
                         print("\n🎯 DEBUG POSITIONS BOTS:")
@@ -318,22 +296,18 @@ def main():
                         if kitchen_renderer:
                             stress_level = kitchen_renderer.kitchen_stress_level
                             panic_mode = kitchen_renderer.panic_mode
-                            accidents_count = len(kitchen_renderer.kitchen_accidents)
-                            total_accidents = kitchen_renderer.total_accidents_count
                             
-                            # ✅ CORRECTION : Utiliser active_orders au lieu de pending_orders
                             active_orders_count = len(order_manager.active_orders) if hasattr(order_manager, 'active_orders') else 0
                             
                             print(f"\n📊 Niveau de stress: {stress_level}%")
                             print(f"🚨 Mode panique: {'ACTIF' if panic_mode else 'inactif'}")
-                            print(f"💥 Accidents en cours: {accidents_count}")
-                            print(f"📈 Total accidents: {total_accidents}")
                             print(f"📈 Commandes actives: {active_orders_count}")
                         else:
                             print("❌ KitchenRenderer non disponible")
                     
                     else:
-                        if event.unicode.isprintable():
+                        # ✅ CORRECTION: Limiter la longueur du texte de saisie
+                        if event.unicode.isprintable() and len(game_state.user_input) < 25:
                             game_state.user_input += event.unicode
 
             # Logique du jeu
@@ -345,52 +319,33 @@ def main():
                 bot_manager.update()
                 
                 if kitchen_renderer:
-                    # ✅ SYSTÈME DE STRESS ÉQUILIBRÉ
                     current_time = time.time()
                     
-                    # Vérifier les accidents modérément
-                    if current_time - last_accident_check > 3.0:  # Toutes les 3 secondes
-                        last_accident_check = current_time
-                        
-                        # ✅ ACCIDENTS MODÉRÉS
-                        accident_chance = kitchen_renderer.kitchen_stress_level / 100  # Seuil normal
-                        
-                        if random.random() < accident_chance and bot_manager and hasattr(bot_manager, 'bots'):
-                            eligible_bots = [bot for bot in bot_manager.bots if bot.inv or random.random() < 0.2]
-                            if eligible_bots:
-                                bot = random.choice(eligible_bots)
-                                accident_types = ["drop_plate", "slip_fall", "ingredient_spill"]
-                                accident_type = random.choice(accident_types)
-                                kitchen_renderer.trigger_accident(bot, accident_type)
-                                # ✅ INCRÉMENTER LE COMPTEUR TOTAL
-                                kitchen_renderer.total_accidents_count += 1
-                                print(f"💥 Accident naturel: {accident_type} pour {bot.chef_name}")
-                                print(f"📊 Total accidents: {kitchen_renderer.total_accidents_count}")
+                    # ✅ ACCIDENTS DÉSACTIVÉS - Pas de vérification d'accidents
                     
-                    # ✅ STRESS ÉQUILIBRÉ
-                    # ✅ CORRECTION : Utiliser active_orders au lieu de pending_orders
+                    # Stress équilibré (simplifié sans accidents)
                     active_orders_count = len(order_manager.active_orders) if hasattr(order_manager, 'active_orders') else 0
                     
-                    # Stress de base basé sur les commandes (MODÉRÉ)
-                    base_stress = active_orders_count * 5  # Réduit de 8 à 5
-                    
-                    # Stress additionnel pour les chefs occupés (MODÉRÉ)
+                    base_stress = active_orders_count * 5
                     busy_chefs = sum(1 for bot in bot_manager.bots 
                                    if bot.state not in ["idle", "thinking", "observing"])
-                    base_stress += busy_chefs * 3  # Réduit de 5 à 3
+                    base_stress += busy_chefs * 3
                     
-                    # Stress des accidents (MODÉRÉ)
-                    base_stress += len(kitchen_renderer.kitchen_accidents) * 8  # Réduit de 15 à 8
+                    # ✅ PAS D'ACCIDENTS DANS LE CALCUL DU STRESS
                     
-                    # Appliquer le stress (MODÉRÉ)
                     if base_stress > kitchen_renderer.kitchen_stress_level:
-                        kitchen_renderer.kitchen_stress_level = min(90, kitchen_renderer.kitchen_stress_level + 1)  # Réduit de 2 à 1
+                        kitchen_renderer.kitchen_stress_level = min(90, kitchen_renderer.kitchen_stress_level + 1)
                     else:
-                        # Réduction du stress
-                        kitchen_renderer.kitchen_stress_level = max(0, kitchen_renderer.kitchen_stress_level - 0.3)  # Réduction augmentée
+                        kitchen_renderer.kitchen_stress_level = max(0, kitchen_renderer.kitchen_stress_level - 0.3)
                     
-                    kitchen_renderer.update_stress_system(bot_manager, order_manager)
-                    kitchen_renderer.update_accidents()
+                    # ✅ Mise à jour simplifiée sans accidents
+                    if hasattr(kitchen_renderer, 'update_stress_system'):
+                        # Passer None pour les accidents
+                        kitchen_renderer.update_stress_system(bot_manager, order_manager)
+                    
+                    # ✅ Pas d'update des accidents
+                    if hasattr(kitchen_renderer, 'update_accidents'):
+                        kitchen_renderer.update_accidents()
                 
                 if show_bdi_logs and (current_time - last_bdi_log_time >= 3.0):
                     print("\n" + "─" * 60)
@@ -420,29 +375,27 @@ def main():
                     
                     if kitchen_renderer:
                         stress_level = kitchen_renderer.kitchen_stress_level
-                        accidents_count = len(kitchen_renderer.kitchen_accidents)
-                        total_accidents = kitchen_renderer.total_accidents_count
                         panic_mode = kitchen_renderer.panic_mode
                         
-                        # ✅ CORRECTION : Utiliser active_orders
                         active_orders_count = len(order_manager.active_orders) if hasattr(order_manager, 'active_orders') else 0
                         
-                        print(f"  ⚡ Stress cuisine: {stress_level}% | Accidents en cours: {accidents_count}")
-                        print(f"  📊 Total accidents: {total_accidents} | Panique: {'OUI' if panic_mode else 'non'}")
+                        print(f"  ⚡ Stress cuisine: {stress_level:.0f}%")
+                        print(f"  🚨 Mode panique: {'OUI' if panic_mode else 'non'}")
                         print(f"  📈 Commandes actives: {active_orders_count}")
+                        print(f"  ❌ Accidents: DÉSACTIVÉS")
                     
                     last_debug_time = current_time
                     
             except Exception as e:
                 print(f"⚠ Erreur mise à jour: {e}")
-                # Éviter de bloquer le jeu en cas d'erreur
                 continue
 
             # RENDU PRINCIPAL
-            screen.fill((50, 60, 70))  # Fond bleu-gris clair
+            screen.fill((50, 60, 70))
             
             try:
                 if kitchen_renderer:
+                    # ✅ Rendu sans accidents
                     kitchen_renderer.render_full_kitchen(
                         bot_manager, 
                         asset_manager, 
@@ -458,9 +411,8 @@ def main():
                 print(f"⚠ Erreur rendu: {e}")
                 draw_basic_kitchen(screen)
             
-            # ⭐ INTERFACE AVEC UNE SEULE BARRE DE STRESS À CÔTÉ DE LA ZONE DE SAISIE
+            # ⭐ INTERFACE CORRIGÉE
             try:
-                # Polices
                 font_large = pygame.font.Font(None, 36)
                 font_medium = pygame.font.Font(None, 28)
                 font_small = pygame.font.Font(None, 22)
@@ -474,28 +426,28 @@ def main():
                 label_text = font_medium.render("Commande:", True, (255, 255, 255))
                 screen.blit(label_text, (20, 15))
                 
-                # Texte de saisie
+                # ✅ CORRECTION: Limiter l'affichage du texte de saisie
                 user_input_display = game_state.user_input + ("_" if int(time.time() * 2) % 2 == 0 else " ")
+                # Limiter à 22 caractères affichés
+                if len(user_input_display) > 22:
+                    user_input_display = user_input_display[-22:]
                 input_text = font_medium.render(user_input_display, True, (255, 255, 150))
                 screen.blit(input_text, (20, 35))
                 
-                # ✅ UNE SEULE BARRE DE STRESS - À DROITE DE LA ZONE DE SAISIE
+                # ✅ BARRE DE STRESS - ARRONDIE
                 if kitchen_renderer:
-                    stress_level = kitchen_renderer.kitchen_stress_level
+                    stress_level = int(kitchen_renderer.kitchen_stress_level)  # ✅ ARRONDI
                     
-                    # Position à droite de la zone de saisie
-                    stress_x = 370  # À droite de la zone de saisie (350 + 20 de marge)
+                    stress_x = 370
                     stress_y = 15
                     
-                    # Couleurs plus douces
                     if stress_level < 40:
-                        stress_color = (100, 255, 100)  # Vert
+                        stress_color = (100, 255, 100)
                     elif stress_level < 70:
-                        stress_color = (255, 200, 50)   # Orange
+                        stress_color = (255, 200, 50)
                     else:
-                        stress_color = (255, 80, 80)    # Rouge plus doux
+                        stress_color = (255, 80, 80)
                     
-                    # Barre de stress UNIQUE
                     stress_bg = pygame.Rect(stress_x, stress_y, 200, 25)
                     pygame.draw.rect(screen, (50, 50, 50), stress_bg, border_radius=5)
                     
@@ -503,17 +455,16 @@ def main():
                     stress_fill = pygame.Rect(stress_x, stress_y, stress_fill_width, 25)
                     pygame.draw.rect(screen, stress_color, stress_fill, border_radius=5)
                     
-                    # Texte du stress
-                    stress_text = font_small.render(f"Stress: {stress_level:.0f}%", True, (255, 255, 255))
+                    # ✅ TEXTE SANS DÉCIMALES
+                    stress_text = font_small.render(f"Stress: {stress_level}%", True, (255, 255, 255))
                     screen.blit(stress_text, (stress_x + 5, stress_y + 4))
                     
-                    # Mode panique seulement si vraiment élevé
                     if kitchen_renderer.panic_mode:
                         panic_text = font_small.render("🚨", True, (255, 50, 50))
                         screen.blit(panic_text, (stress_x + 180, stress_y + 4))
                 
-                # ✅ TIMER - JUSTE À CÔTÉ DE LA BARRE DE STRESS
-                timer_x = stress_x + 210  # À droite de la barre de stress
+                # TIMER
+                timer_x = stress_x + 210
                 timer_y = stress_y + 2
                 timer_text = font_large.render(f"⏱️ {game_state.timer:.1f}s", True, (255, 255, 255))
                 screen.blit(timer_text, (timer_x, timer_y))
@@ -530,10 +481,9 @@ def main():
         stats['leaderboard'] = bot_manager.get_leaderboard()
         
         if kitchen_renderer:
-            stats['max_stress'] = kitchen_renderer.kitchen_stress_level
+            stats['max_stress'] = int(kitchen_renderer.kitchen_stress_level)  # ✅ ARRONDI
             stats['panic_mode'] = kitchen_renderer.panic_mode
-            # ✅ UTILISER LE COMPTEUR TOTAL DES ACCIDENTS
-            stats['total_accidents'] = kitchen_renderer.total_accidents_count
+            # ✅ Pas de statistiques d'accidents
         
         show_game_over_screen(screen, stats, bot_manager, kitchen_renderer)
     
@@ -556,93 +506,142 @@ def draw_basic_kitchen(screen):
         import config
         screen.fill((120, 140, 120))
         
-        # Zones de la cuisine
-        pygame.draw.rect(screen, (200, 200, 255), (50, 120, 300, 350))  # Préparation
-        pygame.draw.rect(screen, (160, 120, 80), (400, 120, 250, 120))  # Cuisson
-        pygame.draw.rect(screen, (240, 230, 220), (400, 280, 250, 100)) # Assemblage
-        pygame.draw.rect(screen, (255, 200, 100), (700, 120, 120, 300)) # Service
+        pygame.draw.rect(screen, (200, 200, 255), (50, 120, 300, 350))
+        pygame.draw.rect(screen, (160, 120, 80), (400, 120, 250, 120))
+        pygame.draw.rect(screen, (240, 230, 220), (400, 280, 250, 100))
+        pygame.draw.rect(screen, (255, 200, 100), (700, 120, 120, 300))
         
     except Exception:
         screen.fill((50, 50, 50))
 
 
 def show_game_over_screen(screen, stats, bot_manager, kitchen_renderer=None):
-    """Écran de fin SANS stress individuel des chefs"""
+    """✅ ÉCRAN DE FIN CORRIGÉ - SANS ACCIDENTS"""
     try:
         import game_state
         import config
         
-        # Fond semi-transparent
+        # Fond avec effet de flou
         overlay = pygame.Surface((config.WIDTH, config.HEIGHT))
-        overlay.set_alpha(200)
-        overlay.fill((0, 0, 0))
+        overlay.set_alpha(220)
+        overlay.fill((10, 15, 30))
         screen.blit(overlay, (0, 0))
         
-        # Polices
+        # Effet d'étoiles
+        for i in range(50):
+            x = random.randint(0, config.WIDTH)
+            y = random.randint(0, config.HEIGHT)
+            size = random.randint(1, 3)
+            brightness = random.randint(150, 255)
+            pygame.draw.circle(screen, (brightness, brightness, brightness), (x, y), size)
+        
+        # Polices améliorées
         font_title = pygame.font.Font(None, 64)
-        font_large = pygame.font.Font(None, 48)
-        font_medium = pygame.font.Font(None, 32)
-        font_small = pygame.font.Font(None, 24)
+        font_large = pygame.font.Font(None, 40)
+        font_medium = pygame.font.Font(None, 28)
+        font_small = pygame.font.Font(None, 22)
         
-        # Titre
+        # Titre avec effet
         title = font_title.render("PARTIE TERMINÉE!", True, (255, 215, 0))
-        screen.blit(title, title.get_rect(center=(config.WIDTH//2, 80)))
+        title_shadow = font_title.render("PARTIE TERMINÉE!", True, (180, 140, 0))
+        screen.blit(title_shadow, title_shadow.get_rect(center=(config.WIDTH//2 + 3, 53)))
+        screen.blit(title, title.get_rect(center=(config.WIDTH//2, 50)))
         
-        y_offset = 150
+        # Ligne décorative
+        pygame.draw.line(screen, (255, 215, 0), (100, 90), (config.WIDTH-100, 90), 3)
         
-        # Score
-        score_text = font_large.render(f"Score Final: {game_state.score}", True, (255, 255, 255))
-        screen.blit(score_text, score_text.get_rect(center=(config.WIDTH//2, y_offset)))
-        y_offset += 60
+        y_offset = 115
         
-        # Statistiques de stress et accidents
+        # Score avec effet
+        score_bg = pygame.Rect(config.WIDTH//2 - 180, y_offset - 8, 360, 55)
+        pygame.draw.rect(screen, (30, 40, 60), score_bg, border_radius=12)
+        pygame.draw.rect(screen, (255, 215, 0), score_bg, 3, border_radius=12)
+        
+        score_text = font_large.render(f"🎯 Score Final: {game_state.score}", True, (255, 255, 255))
+        screen.blit(score_text, score_text.get_rect(center=(config.WIDTH//2, y_offset + 15)))
+        y_offset += 70
+        
+        # ✅ STATISTIQUES SANS ACCIDENTS
+        stats_bg = pygame.Rect(config.WIDTH//2 - 220, y_offset - 8, 440, 60)
+        pygame.draw.rect(screen, (40, 50, 70, 200), stats_bg, border_radius=12)
+        pygame.draw.rect(screen, (100, 150, 255), stats_bg, 2, border_radius=12)
+        
         if kitchen_renderer:
-            stress_text = font_medium.render(f"📈 Stress maximum: {stats.get('max_stress', 0)}%", True, (255, 100, 100))
-            screen.blit(stress_text, stress_text.get_rect(center=(config.WIDTH//2, y_offset)))
-            y_offset += 40
-            
-            # ✅ AFFICHER LE TOTAL CORRECT DES ACCIDENTS
-            accidents_count = stats.get('total_accidents', 0)
-            accidents_text = font_medium.render(f"💥 Accidents: {accidents_count}", True, (255, 150, 50))
-            screen.blit(accidents_text, accidents_text.get_rect(center=(config.WIDTH//2, y_offset)))
-            y_offset += 60
+            # ✅ STRESS SEULEMENT
+            max_stress = int(stats.get('max_stress', 0))
+            stress_text = font_medium.render(f"📈 Stress maximum: {max_stress}%", True, (255, 200, 100))
+            screen.blit(stress_text, stress_text.get_rect(center=(config.WIDTH//2, y_offset + 20)))
         
-        # Classement
-        classement_title = font_large.render("🏆 CLASSEMENT", True, (255, 215, 0))
+        y_offset += 75
+        
+        # Classement avec effets
+        classement_title = font_large.render("🏆 CLASSEMENT FINAL 🏆", True, (255, 215, 0))
         screen.blit(classement_title, classement_title.get_rect(center=(config.WIDTH//2, y_offset)))
-        y_offset += 60
+        y_offset += 50
         
         leaderboard = bot_manager.get_leaderboard()
         winner_name = ""
         
         for i, entry in enumerate(leaderboard):
-            medal = "🥇" if i == 0 else "🥈" if i == 1 else "🥉"
-            color = (255, 215, 0) if i == 0 else (192, 192, 192) if i == 1 else (205, 127, 50)
+            # Cadre pour chaque chef - RÉDUIT
+            chef_bg = pygame.Rect(config.WIDTH//2 - 280, y_offset - 10, 560, 75)
+            bg_color = (50, 70, 100) if i % 2 == 0 else (60, 80, 110)
+            pygame.draw.rect(screen, bg_color, chef_bg, border_radius=10)
+            
+            # Bordure colorée selon le rang
+            if i == 0:
+                border_color = (255, 215, 0)
+                medal = "🥇"
+            elif i == 1:
+                border_color = (192, 192, 192)
+                medal = "🥈"
+            elif i == 2:
+                border_color = (205, 127, 50)
+                medal = "🥉"
+            else:
+                border_color = (100, 120, 150)
+                medal = f"{i+1}."
+            
+            pygame.draw.rect(screen, border_color, chef_bg, 2, border_radius=10)
             
             if i == 0:
                 winner_name = entry['name']
             
-            chef_text = f"{medal} {entry['name']}: {entry['score']} points"
-            chef_surf = font_medium.render(chef_text, True, color)
-            screen.blit(chef_surf, chef_surf.get_rect(center=(config.WIDTH//2, y_offset)))
-            y_offset += 40
+            # ✅ NOM DU CHEF À GAUCHE
+            chef_text = f"{medal} {entry['name']}"
+            chef_surf = font_medium.render(chef_text, True, (255, 255, 255))
+            screen.blit(chef_surf, (config.WIDTH//2 - 265, y_offset + 5))
             
-            # ✅ SUPPRIMER LE STRESS INDIVIDUEL - Afficher seulement les plats
-            stats_text = f"Plats: {entry['stats']['dishes_delivered']}"
-            stats_surf = font_small.render(stats_text, True, (200, 200, 200))
-            screen.blit(stats_surf, stats_surf.get_rect(center=(config.WIDTH//2, y_offset)))
-            y_offset += 30
+            # ✅ SCORE À DROITE - BIEN ALIGNÉ
+            score_surf = font_medium.render(f"{entry['score']} points", True, (200, 255, 200))
+            score_rect = score_surf.get_rect(right=config.WIDTH//2 + 265, centery=y_offset + 15)
+            screen.blit(score_surf, score_rect)
+            
+            # ✅ STATISTIQUES EN BAS - SANS ACCIDENTS
+            dishes = entry['stats']['dishes_delivered']
+            stats_text = f"Plats livrés: {dishes}"
+            stats_surf = font_small.render(stats_text, True, (180, 200, 220))
+            screen.blit(stats_surf, (config.WIDTH//2 - 265, y_offset + 35))
+            
+            y_offset += 85
         
-        # ✅ MESSAGE DE FÉLICITATIONS POUR LE GAGNANT
-        y_offset += 40
+        # ✅ MESSAGE DE FÉLICITATIONS AU GAGNANT - COMPACT
         if winner_name:
-            congrats_text = font_large.render(f"🎉 Félicitations à {winner_name} ! 🎉", True, (255, 215, 0))
-            screen.blit(congrats_text, congrats_text.get_rect(center=(config.WIDTH//2, y_offset)))
-            y_offset += 50
+            y_offset += 15
+            congrats_bg = pygame.Rect(config.WIDTH//2 - 320, y_offset - 8, 640, 55)
+            pygame.draw.rect(screen, (30, 60, 100), congrats_bg, border_radius=12)
+            pygame.draw.rect(screen, (255, 215, 0), congrats_bg, 3, border_radius=12)
+            
+            # ✅ MESSAGE COMPLET
+            congrats_text = font_large.render(f"🎉 Félicitations au gagnant {winner_name} ! 🎉", True, (255, 255, 200))
+            screen.blit(congrats_text, congrats_text.get_rect(center=(config.WIDTH//2, y_offset + 20)))
+            y_offset += 70
         
-        # Message de fin
-        continue_text = font_small.render("Appuyez sur une touche pour quitter...", True, (150, 150, 150))
-        screen.blit(continue_text, continue_text.get_rect(center=(config.WIDTH//2, y_offset)))
+        # Message de fin avec effet de clignotement
+        blink = int(time.time() * 2) % 2 == 0
+        if blink:
+            continue_text = font_small.render("Appuyez sur une touche pour quitter...", True, (150, 200, 255))
+            screen.blit(continue_text, continue_text.get_rect(center=(config.WIDTH//2, y_offset)))
         
         pygame.display.flip()
         
