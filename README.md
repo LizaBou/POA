@@ -1,5 +1,7 @@
 # Mini Overcooked - Simulation Multi-Agents Compétitive
 
+# Vidéo de démonstration : https://youtu.be/uew36eCM-mA
+
 ##  Description
 
 **Mini Overcooked** est une simulation multi-agents en 2D développée avec Python et Pygame. Inspiré du jeu *Overcooked*, ce projet met en scène des **agents autonomes (chefs)** qui travaillent de manière **compétitive** pour préparer et livrer des plats.
