@@ -1,7 +1,8 @@
 """
 Point d'entrée principal pour Mini Overcooked avec ARCHITECTURE BDI
 VERSION COMPLÈTE CORRIGÉE - INTERFACE AMÉLIORÉE
-✅ Système d'accidents RETIRÉ
+✅ Système d'accidents ACTIVÉ ET FONCTIONNEL
+❌ Mode panique DÉSACTIVÉ (pour garder le rendu)
 """
 import sys
 import os
@@ -22,7 +23,8 @@ def main():
     print("✅ CORRECTION DU BLOCAGE AUX BACS")
     print("✅ STRESS ÉQUILIBRÉ ET STABLE")
     print("✅ INTERFACE CORRIGÉE")
-    print("❌ ACCIDENTS DÉSACTIVÉS")
+    print("✅ ACCIDENTS ACTIVÉS ET FONCTIONNELS")
+    print("❌ MODE PANIQUE DÉSACTIVÉ")
     print("=" * 60)
     
     try:
@@ -54,13 +56,14 @@ def main():
             kitchen_renderer = KitchenRenderer(screen)
             game_state.kitchen_renderer = kitchen_renderer
             
-            # ✅ STRESS INITIAL MODÉRÉ - ACCIDENTS DÉSACTIVÉS
+            # ✅ STRESS INITIAL MODÉRÉ - ACCIDENTS ACTIVÉS
             kitchen_renderer.kitchen_stress_level = 10
-            # Désactiver le système d'accidents
-            kitchen_renderer.accident_cooldown = 0
+            # ACTIVER le système d'accidents
+            kitchen_renderer.accident_cooldown = 30  # Cooldown entre accidents
             kitchen_renderer.total_accidents_count = 0
-            kitchen_renderer.panic_mode = False  # Désactiver le mode panique
-            print("✓ Renderer de cuisine initialisé (accidents désactivés)")
+            kitchen_renderer.panic_mode = False  # ❌ DÉSACTIVER le mode panique
+            kitchen_renderer.kitchen_accidents = []  # Liste pour les accidents actifs
+            print("✓ Renderer de cuisine initialisé (accidents ACTIVÉS, mode panique DÉSACTIVÉ)")
         except Exception as e:
             print(f"❌ Erreur renderer: {e}")
             kitchen_renderer = None
@@ -137,7 +140,8 @@ def main():
             print("\n" + "=" * 60)
             print("✅ SYSTÈME BDI MULTI-AGENTS PRÊT!")
             print("🎯 BLOCAGE AUX BACS CORRIGÉ")
-            print("❌ ACCIDENTS DÉSACTIVÉS")
+            print("✅ ACCIDENTS ACTIVÉS")
+            print("❌ MODE PANIQUE DÉSACTIVÉ")
             print("=" * 60)
             
         except Exception as e:
@@ -156,7 +160,8 @@ def main():
         
         print("\n" + "🎮" * 30)
         print("🧠 MODE BDI ACTIVÉ - STRESS ÉQUILIBRÉ")
-        print("❌ ACCIDENTS DÉSACTIVÉS")
+        print("✅ ACCIDENTS ACTIVÉS ET FONCTIONNELS")
+        print("❌ MODE PANIQUE DÉSACTIVÉ")
         print("🎮" * 30)
         print("\n📝 Commandes disponibles:")
         for recipe in game_state.available_ingredients.keys():
@@ -166,12 +171,14 @@ def main():
         print("  F1  - Ajouter 5 commandes (test)")
         print("  F2  - Réinitialiser système")
         print("  F5  - 🎯 DEBUG POSITIONS BOTS")
+        print("  F6  - 🚨 FORCER UN ACCIDENT (test)")
         print("  F7  - 🧠 État mental des agents")
         print("  F8  - 🧠 Toggle logs BDI")
         print("  F9  - 😊 État émotionnel des chefs")
         print("  F10 - 📊 État du stress de la cuisine")
         print("  ESC - Quitter")
-        print("\n⚠️  Les accidents sont désactivés")
+        print("\n⚠️  Les accidents sont ACTIVÉS - Les steaks peuvent brûler!")
+        print("📌 Mode panique désactivé pour garder le rendu stable")
         
         running = True
         frame_count = 0
@@ -235,17 +242,62 @@ def main():
                             bot.action_attempts = 0
                         if kitchen_renderer:
                             kitchen_renderer.kitchen_stress_level = 10
-                            # Réinitialiser sans accidents
+                            # Réinitialiser les accidents
                             if hasattr(kitchen_renderer, 'kitchen_accidents'):
                                 kitchen_renderer.kitchen_accidents = []
-                            kitchen_renderer.panic_mode = False
+                            kitchen_renderer.panic_mode = False  # ❌ Garder désactivé
                             kitchen_renderer.total_accidents_count = 0
-                        print("🔧 Système BDI réinitialisé")
+                            kitchen_renderer.accident_cooldown = 30
+                        print("🔧 Système BDI réinitialisé (mode panique désactivé)")
                     
                     elif event.key == pygame.K_F5:
                         print("\n🎯 DEBUG POSITIONS BOTS:")
                         for bot in bot_manager.bots:
                             print(f"  {bot.chef_name}: ({bot.x:.1f}, {bot.y:.1f}) - {bot.get_state_text()}")
+                    
+                    elif event.key == pygame.K_F6:
+                        # 🚨 FORCER UN ACCIDENT
+                        print("\n🚨 FORCING ACCIDENT (TEST)...")
+                        if kitchen_renderer:
+                            # Appeler la méthode create_accident si elle existe
+                            if hasattr(kitchen_renderer, 'create_accident'):
+                                accident_info = kitchen_renderer.create_accident(bot_manager)
+                                if accident_info:
+                                    print(f"🚨 ACCIDENT CRÉÉ! {accident_info['message']}")
+                                    kitchen_renderer.total_accidents_count += 1
+                                    # Augmenter le stress
+                                    kitchen_renderer.kitchen_stress_level = min(100, 
+                                        kitchen_renderer.kitchen_stress_level + 20)
+                            else:
+                                # Créer un accident manuellement
+                                accidents = [
+                                    "Le steak brûle sur la cuisinière!",
+                                    "Un ingrédient tombe par terre!",
+                                    "Un chef trébuche et renverse des aliments!",
+                                    "Feu de friteuse! (simulé)",
+                                    "Panne de l'équipement de cuisson!"
+                                ]
+                                accident_message = random.choice(accidents)
+                                
+                                # Créer un effet visuel
+                                accident_effect = {
+                                    'message': accident_message,
+                                    'position': (random.randint(100, 900), random.randint(150, 550)),
+                                    'timer': 180,  # 3 secondes à 60 FPS
+                                    'type': random.choice(['fire', 'spill', 'smoke'])
+                                }
+                                
+                                # Ajouter à la liste des accidents
+                                if not hasattr(kitchen_renderer, 'kitchen_accidents'):
+                                    kitchen_renderer.kitchen_accidents = []
+                                kitchen_renderer.kitchen_accidents.append(accident_effect)
+                                kitchen_renderer.total_accidents_count += 1
+                                
+                                print(f"🚨 ACCIDENT FORCÉ! {accident_message}")
+                                kitchen_renderer.kitchen_stress_level = min(100, 
+                                    kitchen_renderer.kitchen_stress_level + 20)
+                        else:
+                            print("❌ KitchenRenderer non disponible")
                     
                     elif event.key == pygame.K_F7:
                         print("\n" + "🧠" * 30)
@@ -296,12 +348,14 @@ def main():
                         if kitchen_renderer:
                             stress_level = kitchen_renderer.kitchen_stress_level
                             panic_mode = kitchen_renderer.panic_mode
+                            accidents_count = kitchen_renderer.total_accidents_count
                             
                             active_orders_count = len(order_manager.active_orders) if hasattr(order_manager, 'active_orders') else 0
                             
                             print(f"\n📊 Niveau de stress: {stress_level}%")
-                            print(f"🚨 Mode panique: {'ACTIF' if panic_mode else 'inactif'}")
+                            print(f"🚨 Mode panique: {'DÉSACTIVÉ'}")
                             print(f"📈 Commandes actives: {active_orders_count}")
+                            print(f"🔥 Accidents: {accidents_count}")
                         else:
                             print("❌ KitchenRenderer non disponible")
                     
@@ -321,9 +375,76 @@ def main():
                 if kitchen_renderer:
                     current_time = time.time()
                     
-                    # ✅ ACCIDENTS DÉSACTIVÉS - Pas de vérification d'accidents
+                    # ✅ GESTION DU COOLDOWN DES ACCIDENTS
+                    # Réduire le cooldown
+                    if hasattr(kitchen_renderer, 'accident_cooldown'):
+                        kitchen_renderer.accident_cooldown -= dt
+                        
+                        # Si le cooldown est écoulé, tenter de créer un accident
+                        if kitchen_renderer.accident_cooldown <= 0:
+                            # Réinitialiser le cooldown
+                            kitchen_renderer.accident_cooldown = random.randint(20, 60)  # 20-60 secondes
+                            
+                            # Plus le stress est élevé, plus la chance d'accident est grande
+                            if kitchen_renderer.kitchen_stress_level > 40:
+                                # Probabilité basée sur le stress (0-15%)
+                                chance = (kitchen_renderer.kitchen_stress_level - 40) / 400  # 15% max à 100% stress
+                                
+                                # Augmenter la chance avec le nombre d'accidents déjà survenus
+                                if hasattr(kitchen_renderer, 'total_accidents_count'):
+                                    chance += kitchen_renderer.total_accidents_count / 100
+                                
+                                # Augmenter la chance avec le nombre de commandes actives
+                                active_orders = len(order_manager.active_orders) if hasattr(order_manager, 'active_orders') else 0
+                                chance += active_orders / 200
+                                
+                                if random.random() < chance:
+                                    # Créer un accident
+                                    if hasattr(kitchen_renderer, 'create_accident'):
+                                        accident_info = kitchen_renderer.create_accident(bot_manager)
+                                    else:
+                                        # Créer un accident manuellement
+                                        accidents = [
+                                            "Le steak brûle sur la cuisinière!",
+                                            "Un ingrédient tombe par terre!",
+                                            "Un chef trébuche et renverse des aliments!",
+                                            "Feu de friteuse! (simulé)",
+                                            "Panne de l'équipement de cuisson!"
+                                        ]
+                                        accident_message = random.choice(accidents)
+                                        
+                                        # Créer un effet visuel
+                                        accident_effect = {
+                                            'message': accident_message,
+                                            'position': (random.randint(100, 900), random.randint(150, 550)),
+                                            'timer': 180,  # 3 secondes à 60 FPS
+                                            'type': random.choice(['fire', 'spill', 'smoke'])
+                                        }
+                                        
+                                        # Ajouter à la liste des accidents
+                                        if not hasattr(kitchen_renderer, 'kitchen_accidents'):
+                                            kitchen_renderer.kitchen_accidents = []
+                                        kitchen_renderer.kitchen_accidents.append(accident_effect)
+                                        accident_info = accident_effect
+                                    
+                                    if accident_info:
+                                        print(f"🚨 ACCIDENT! {accident_info['message']}")
+                                        kitchen_renderer.total_accidents_count += 1
+                                        
+                                        # Augmenter le stress de la cuisine
+                                        kitchen_renderer.kitchen_stress_level = min(100, 
+                                            kitchen_renderer.kitchen_stress_level + 15)
                     
-                    # Stress équilibré (simplifié sans accidents)
+                    # ✅ MISE À JOUR DES ACCIDENTS EXISTANTS
+                    if hasattr(kitchen_renderer, 'kitchen_accidents'):
+                        for accident in kitchen_renderer.kitchen_accidents[:]:
+                            # Réduire le timer
+                            if 'timer' in accident:
+                                accident['timer'] -= 1
+                                if accident['timer'] <= 0:
+                                    kitchen_renderer.kitchen_accidents.remove(accident)
+                    
+                    # Stress équilibré avec accidents
                     active_orders_count = len(order_manager.active_orders) if hasattr(order_manager, 'active_orders') else 0
                     
                     base_stress = active_orders_count * 5
@@ -331,19 +452,22 @@ def main():
                                    if bot.state not in ["idle", "thinking", "observing"])
                     base_stress += busy_chefs * 3
                     
-                    # ✅ PAS D'ACCIDENTS DANS LE CALCUL DU STRESS
+                    # ✅ INCLURE LES ACCIDENTS DANS LE CALCUL DU STRESS
+                    if hasattr(kitchen_renderer, 'total_accidents_count'):
+                        base_stress += kitchen_renderer.total_accidents_count * 10  # +10% par accident
                     
                     if base_stress > kitchen_renderer.kitchen_stress_level:
                         kitchen_renderer.kitchen_stress_level = min(90, kitchen_renderer.kitchen_stress_level + 1)
                     else:
                         kitchen_renderer.kitchen_stress_level = max(0, kitchen_renderer.kitchen_stress_level - 0.3)
                     
-                    # ✅ Mise à jour simplifiée sans accidents
+                    # ✅ Mise à jour du système de stress sans mode panique
                     if hasattr(kitchen_renderer, 'update_stress_system'):
-                        # Passer None pour les accidents
+                        # Forcer le mode panique à False
+                        kitchen_renderer.panic_mode = False
                         kitchen_renderer.update_stress_system(bot_manager, order_manager)
                     
-                    # ✅ Pas d'update des accidents
+                    # ✅ Mise à jour des accidents
                     if hasattr(kitchen_renderer, 'update_accidents'):
                         kitchen_renderer.update_accidents()
                 
@@ -375,19 +499,21 @@ def main():
                     
                     if kitchen_renderer:
                         stress_level = kitchen_renderer.kitchen_stress_level
-                        panic_mode = kitchen_renderer.panic_mode
+                        accidents_count = kitchen_renderer.total_accidents_count
                         
                         active_orders_count = len(order_manager.active_orders) if hasattr(order_manager, 'active_orders') else 0
                         
                         print(f"  ⚡ Stress cuisine: {stress_level:.0f}%")
-                        print(f"  🚨 Mode panique: {'OUI' if panic_mode else 'non'}")
+                        print(f"  🚨 Mode panique: DÉSACTIVÉ")
                         print(f"  📈 Commandes actives: {active_orders_count}")
-                        print(f"  ❌ Accidents: DÉSACTIVÉS")
+                        print(f"  🔥 Accidents: {accidents_count}")
                     
                     last_debug_time = current_time
                     
             except Exception as e:
                 print(f"⚠ Erreur mise à jour: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
 
             # RENDU PRINCIPAL
@@ -395,13 +521,38 @@ def main():
             
             try:
                 if kitchen_renderer:
-                    # ✅ Rendu sans accidents
+                    # ✅ Rendu avec accidents mais SANS mode panique
                     kitchen_renderer.render_full_kitchen(
                         bot_manager, 
                         asset_manager, 
                         game_state.timer, 
                         order_manager
                     )
+                    
+                    # ✅ RENDRE LES ACCIDENTS VISIBLES
+                    if hasattr(kitchen_renderer, 'kitchen_accidents'):
+                        for accident in kitchen_renderer.kitchen_accidents:
+                            # Dessiner l'effet visuel
+                            if accident['type'] == 'fire':
+                                # Feu orange/rouge
+                                pygame.draw.circle(screen, (255, 100, 0), accident['position'], 20)
+                                pygame.draw.circle(screen, (255, 200, 0), accident['position'], 15)
+                                pygame.draw.circle(screen, (255, 255, 150), accident['position'], 8)
+                            elif accident['type'] == 'smoke':
+                                # Fumée grise
+                                pygame.draw.circle(screen, (100, 100, 100), accident['position'], 25)
+                                pygame.draw.circle(screen, (150, 150, 150), accident['position'], 18)
+                                pygame.draw.circle(screen, (200, 200, 200), accident['position'], 10)
+                            elif accident['type'] == 'spill':
+                                # Débordement liquide
+                                pygame.draw.circle(screen, (100, 150, 255), accident['position'], 22)
+                                pygame.draw.circle(screen, (150, 200, 255), accident['position'], 16)
+                                pygame.draw.circle(screen, (200, 230, 255), accident['position'], 10)
+                            
+                            # Afficher un texte d'avertissement
+                            font = pygame.font.Font(None, 20)
+                            warning_text = font.render("!", True, (255, 0, 0))
+                            screen.blit(warning_text, (accident['position'][0] - 5, accident['position'][1] - 10))
                 else:
                     draw_basic_kitchen(screen)
                     for bot in bot_manager.bots:
@@ -409,6 +560,8 @@ def main():
                         
             except Exception as e:
                 print(f"⚠ Erreur rendu: {e}")
+                import traceback
+                traceback.print_exc()
                 draw_basic_kitchen(screen)
             
             # ⭐ INTERFACE CORRIGÉE
@@ -459,9 +612,11 @@ def main():
                     stress_text = font_small.render(f"Stress: {stress_level}%", True, (255, 255, 255))
                     screen.blit(stress_text, (stress_x + 5, stress_y + 4))
                     
-                    if kitchen_renderer.panic_mode:
-                        panic_text = font_small.render("🚨", True, (255, 50, 50))
-                        screen.blit(panic_text, (stress_x + 180, stress_y + 4))
+                    # ✅ AFFICHER LE NOMBRE D'ACCIDENTS
+                    accidents_count = kitchen_renderer.total_accidents_count
+                    if accidents_count > 0:
+                        accident_text = font_small.render(f"🔥 {accidents_count}", True, (255, 100, 100))
+                        screen.blit(accident_text, (stress_x + 180, stress_y + 4))
                 
                 # TIMER
                 timer_x = stress_x + 210
@@ -471,6 +626,8 @@ def main():
                 
             except Exception as e:
                 print(f"⚠ Erreur UI: {e}")
+                import traceback
+                traceback.print_exc()
             
             pygame.display.flip()
         
@@ -482,8 +639,8 @@ def main():
         
         if kitchen_renderer:
             stats['max_stress'] = int(kitchen_renderer.kitchen_stress_level)  # ✅ ARRONDI
-            stats['panic_mode'] = kitchen_renderer.panic_mode
-            # ✅ Pas de statistiques d'accidents
+            stats['panic_mode'] = False  # Toujours désactivé
+            stats['accidents_count'] = kitchen_renderer.total_accidents_count
         
         show_game_over_screen(screen, stats, bot_manager, kitchen_renderer)
     
@@ -516,7 +673,7 @@ def draw_basic_kitchen(screen):
 
 
 def show_game_over_screen(screen, stats, bot_manager, kitchen_renderer=None):
-    """✅ ÉCRAN DE FIN CORRIGÉ - SANS ACCIDENTS"""
+    """✅ ÉCRAN DE FIN CORRIGÉ - AVEC ACCIDENTS, SANS PANIQUE"""
     try:
         import game_state
         import config
@@ -561,18 +718,23 @@ def show_game_over_screen(screen, stats, bot_manager, kitchen_renderer=None):
         screen.blit(score_text, score_text.get_rect(center=(config.WIDTH//2, y_offset + 15)))
         y_offset += 70
         
-        # ✅ STATISTIQUES SANS ACCIDENTS
-        stats_bg = pygame.Rect(config.WIDTH//2 - 220, y_offset - 8, 440, 60)
-        pygame.draw.rect(screen, (40, 50, 70, 200), stats_bg, border_radius=12)
-        pygame.draw.rect(screen, (100, 150, 255), stats_bg, 2, border_radius=12)
-        
+        # ✅ STATISTIQUES AVEC ACCIDENTS
         if kitchen_renderer:
-            # ✅ STRESS SEULEMENT
+            stats_bg = pygame.Rect(config.WIDTH//2 - 240, y_offset - 8, 480, 85)
+            pygame.draw.rect(screen, (40, 50, 70, 200), stats_bg, border_radius=12)
+            pygame.draw.rect(screen, (100, 150, 255), stats_bg, 2, border_radius=12)
+            
+            # ✅ STRESS ET ACCIDENTS
             max_stress = int(stats.get('max_stress', 0))
+            accidents_count = stats.get('accidents_count', 0)
+            
             stress_text = font_medium.render(f"📈 Stress maximum: {max_stress}%", True, (255, 200, 100))
+            accidents_text = font_medium.render(f"🔥 Accidents: {accidents_count}", True, (255, 100, 100))
+            
             screen.blit(stress_text, stress_text.get_rect(center=(config.WIDTH//2, y_offset + 20)))
+            screen.blit(accidents_text, accidents_text.get_rect(center=(config.WIDTH//2, y_offset + 50)))
         
-        y_offset += 75
+        y_offset += 90
         
         # Classement avec effets
         classement_title = font_large.render("🏆 CLASSEMENT FINAL 🏆", True, (255, 215, 0))
@@ -583,7 +745,7 @@ def show_game_over_screen(screen, stats, bot_manager, kitchen_renderer=None):
         winner_name = ""
         
         for i, entry in enumerate(leaderboard):
-            # Cadre pour chaque chef - RÉDUIT
+            # Cadre pour chaque chef
             chef_bg = pygame.Rect(config.WIDTH//2 - 280, y_offset - 10, 560, 75)
             bg_color = (50, 70, 100) if i % 2 == 0 else (60, 80, 110)
             pygame.draw.rect(screen, bg_color, chef_bg, border_radius=10)
@@ -617,7 +779,7 @@ def show_game_over_screen(screen, stats, bot_manager, kitchen_renderer=None):
             score_rect = score_surf.get_rect(right=config.WIDTH//2 + 265, centery=y_offset + 15)
             screen.blit(score_surf, score_rect)
             
-            # ✅ STATISTIQUES EN BAS - SANS ACCIDENTS
+            # ✅ STATISTIQUES EN BAS
             dishes = entry['stats']['dishes_delivered']
             stats_text = f"Plats livrés: {dishes}"
             stats_surf = font_small.render(stats_text, True, (180, 200, 220))
@@ -625,7 +787,7 @@ def show_game_over_screen(screen, stats, bot_manager, kitchen_renderer=None):
             
             y_offset += 85
         
-        # ✅ MESSAGE DE FÉLICITATIONS AU GAGNANT - COMPACT
+        # ✅ MESSAGE DE FÉLICITATIONS AU GAGNANT
         if winner_name:
             y_offset += 15
             congrats_bg = pygame.Rect(config.WIDTH//2 - 320, y_offset - 8, 640, 55)
